@@ -84,7 +84,7 @@ Function Get-IsoTime{
 
 $ErrorActionPreference  = "Stop"
 
-[String]$outfile = "C:\NA-Scripts\storage_report_output\"+(Get-IsoDate)+"_StorageHC.htm"
+[String]$outfile = "C:\NA-Scripts\storage_report_output\StorageHC.htm"
 
 #$outfile = "C:\NA-Scripts\storage_report_output\test.html"
 
