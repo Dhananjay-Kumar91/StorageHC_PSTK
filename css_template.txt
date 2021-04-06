@@ -350,13 +350,12 @@
     table {
         font-family: "Raleway", Arial, Helvetica, sans-serif;
         /* border-collapse: collapse; */
-        table-layout: fixed;
+        table-layout: auto;
         font-size: 12px;
-        width: 100%;
+        width: fit-content;
         border-collapse: separate;
         border-spacing: 0;
         color: #17191a;
-        white-space: nowrap;
     }
 
 
@@ -394,6 +393,7 @@
     td {
         border-bottom: 1px solid #cecfd5;
         border-right: 1px solid #cecfd5;
+	
     }
 
     td:first-child {
@@ -477,4 +477,26 @@
         display: table;
         clear: both;
     }
+.collapsible {
+  background-color: #FA8074;
+  color: Black;
+  cursor: pointer;
+  padding: 2px;
+  width: 100%;
+  border: none;
+  text-align: center;
+  outline: none;
+  font-size: 12px;
+}
+
+.active, .collapsible:hover {
+  background-color: #FA8074;
+}
+
+.errorContent {
+  padding: 0 18px;
+  display: none;
+  overflow: hidden;
+  background-color: #FA8074;
+}
 </style>

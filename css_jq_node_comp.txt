@@ -1,4 +1,0 @@
-aggr
-port
-lif
-lun

@@ -56,7 +56,7 @@ Function Get-IsoDate{
 
 Function Get-IsoTime{
 
-  Return Get-Date -Format HH:mm:ss.fff
+  Return Get-Date -Format HH:mm:ss
 
 }
 
@@ -70,97 +70,25 @@ Function Get-IsoTime{
 
  
 
-[String]$scriptPath = Split-Path($MyInvocation.MyCommand.Path)
+[String]$script:scriptPath     = Split-Path($MyInvocation.MyCommand.Path)
 
-[String]$scriptSpec = $MyInvocation.MyCommand.Definition
+[String]$script:scriptSpec     = $MyInvocation.MyCommand.Definition
 
-[String]$scriptBaseName = (Get-Item $scriptSpec).BaseName
+[String]$script:scriptBaseName = (Get-Item $scriptSpec).BaseName
 
-[String]$scriptName = (Get-Item $scriptSpec).Name
+[String]$script:scriptName     = (Get-Item $scriptSpec).Name
 
-[String]$scriptLogPath = $($scriptPath + "\" + (Get-IsoDate))
+[String]$script:scriptLogPath  = $($scriptPath + "\" + (Get-IsoDate))
 
 [Int]$script:errorCount = 0
 
-$ErrorActionPreference = "Stop"
+$ErrorActionPreference  = "Stop"
 
-[String]$fileSpec1 = "C:\NA-Scripts\s1_c.txt"
+[String]$outfile = "C:\NA-Scripts\storage_report_output\"+(Get-IsoDate)+"_StorageHC.htm"
 
-[String]$fileSpec2 = "C:\NA-Scripts\s2_c.txt"
-
-[String]$fileSpec_port1 = "C:\NA-Scripts\s1_c_ports.txt"
-
-[String]$fileSpec_port2 = "C:\NA-Scripts\s2_c_ports.txt"
-
-$script:first = $null
-
-[String]$script:fileSpec_out = "C:\NA-Scripts\storage_report_output\"+(Get-IsoDate)+"_StorageHC.htm"
+#$outfile = "C:\NA-Scripts\storage_report_output\test.html"
 
 
-[String]$script:msgBody = ""
-
-$script:linc = 0
-
-
-######################################################################################################################
-
-#'Initialization Section. Initialize Variables to NULL.
-
-######################################################################################################################
-
- 
-
-Function var-Init(){
-
-  $script:snpm=$script:snpm=$script:snpv=$script:snpvd=$null
-
-  $script:Vols=$script:Voffs=$script:Voffsd=$script:volc=$script:volnm=$script:Vold=$null
-
-  $script:agrs=$script:agr=$script:a1=$script:a2=$script:agrd=$null
-
-  $script:sds=$script:sd=$null
-
-  $script:fds=$script:fd=$script:fdc=$script:fdsd=$script:bodyd=$script:body=$null
-
-  $script:envs=$script:envsd=$script:clus=$script:clusd=$script:fcps=$script:fcpsd=$script:fcps1=$null
-
-  $script:smlagd=$script:smls=$script:smlag=$script:smlag1=$:null
-
-  $script:lunad=$script:ilun=$script:patha=$script:useda=$script:sizea=$script:percentused=$script:ilunoff=$script:lunaoff=$script:ay1=$script:ax1=$null
-
-  $script:aab2=$script:aab1=$script:Voffsab=$null
-
-  $script:SPD1=$script:SPD2=$script:SPD3=$null
-
-  $script:a1=$script:a2=$null
-
- 
-
-}
-
- 
-
-######################################################################################################################
-
-#'Tab Creation code
-
-######################################################################################################################
-
- 
-
-Function Table-Cr(){
-
-   $script:body  = "<table cellpadding=1 cellspacing=1  bgcolor=#FF8F2F style='font-family:verdana; font-size:7pt;'>"
-
-   $script:body += "<tr bgcolor=#DDDDDD><th>Filer Name</th><th>Failed Disk</th><th>Spare Disk</th><th>Cluster status</th><th>Lif Status</th><th>Aggr Status(aggr>90%)</th><th>Volumeinfo(Status & >98%)</th><th>LUN Status</th><th>Snapmirror Status</th><th>Snapmirror Lagtime</th><th>Cluster Peer Status</th><th>Autosupport</th><th>Environment Status</th><th>Node</th><th>Ethernet Port</th><th>Service-Processor Status</th><th>HA Status</th></tr>"
-
-   $script:linc  += 1
-
-   #$body
-
-}
-
- 
 
 ######################################################################################################################
 
@@ -308,73 +236,6 @@ Function Write-Log{
 
 }
 
- 
-
-######################################################################################################################
-
-#'Function to Invoke-DnsReverseLookup.
-
-######################################################################################################################
-
- 
-
-Function Invoke-DnsReverseLookup{
-
-  [CmdletBinding()]
-
-  Param(
-
-     [Parameter(Mandatory=$True, HelpMessage="The IP Address to resolve")]
-
-     [IPAddress]$IPAddress
-
-  )
-
-  $ErrorActionPreference = "silentlycontinue"
-
-  $record = $null
-
-  $record = [System.Net.Dns]::GetHostEntry($IPAddress)
-
-  If($Null -ne $record){
-
-     $result = [string]$record.hostname
-
-  }Else{
-
-     Return $Null;
-
-  }
-
-  Return $result.ToLower();
-
-}
-
- 
-
-######################################################################################################################
-
-#'Function to Convert Volume Size.
-
-######################################################################################################################
-
- 
-
-Function cala($size){
-
-  #VolumeName
-
-  $org  = $size
-
-  $size = [math]::round($org/1Tb,2)*1024
-
-  $size = "$size"
-
-  Return $size
-
-}
-
- 
 
 ######################################################################################################################
 
@@ -383,16 +244,15 @@ Function cala($size){
 ######################################################################################################################
 
  
-
 Function Modules(){
 
    [String]$moduleName = "DataONTAP"
 
    Try{
 
-       Import-Module DataONTAP -ErrorAction Stop
+       Import-Module DataONTAP -ErrorAction Stop | Out-Null
 
-       Import-Module posh-ssh
+       Import-Module posh-ssh -ErrorAction Stop | Out-Null
 
        Get-Module -All | Out-Null
 
@@ -408,7 +268,79 @@ Function Modules(){
 
 }
 
- 
+
+######################################################################################################################
+
+# FUnction to create the HTML Body
+
+######################################################################################################################
+
+Function HTML-Body($current_time, $current_date){
+    $css_fileSpec = "C:\NA-Scripts\css_template.txt"
+    $js_fileSpec = "C:\NA-Scripts\js_template.txt"
+    [String]$css = Get-Content -Path $css_fileSpec
+    [String]$js = Get-Content -Path $js_fileSpec
+    $clusters = Read-Cluster
+    $storage_body = Cluster-ReportTable $clusters
+    $html_body = 
+    @"
+    <!DOCTYPE html>
+    <html lang="en">
+
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Storage Health-Check</title>
+        
+    </head>
+    $css
+    <body>
+        <h1> <strong> Motability - Storage Health Check Report - $current_time </strong></h1>
+        <H4 style='color : #4CAF50;padding-left: 30px;'><strong> Date - $current_date </strong></H4>
+        <H5 style='color : #464A46;font-size : 14px;padding-left: 30px;'><strong> Note : This report is for past 24hrs </strong></H5>
+        <H4 style='color : #464A46;font-size : 21px;padding-left: 30px;'>Legend </H4>
+        <table style='width:auto;padding-left: 30px; background-color: #efefef;word-break: keep-all;'>
+            <tr>
+                <td bgcolor=#FA8074>Red</td>
+                <td style='background-color: white;'>Critical</td>
+                <td bgcolor=#EFF613>Yellow</td>
+                <td style='background-color: white;'>Warnings</td>
+                <td bgcolor=#33FFBB>Green</td>
+                <td style='background-color: white;'>OK</td>
+            </tr>
+
+        </table>
+        <table></table>
+<div class="tabs">
+
+<input type="radio" id="tab1" name="tab-control" checked>
+            <ul>
+                <li title="Storage">
+                    <label for="tab1" role="button">
+                            <img
+                                width="17"
+                                hight="17"
+                                src="https://image.flaticon.com/icons/svg/873/873135.svg"/><br /><span> Storage </span></label>
+                    </li>
+                </ul>
+
+                <div class="slider">
+                    <div class="indicator"></div>
+                </div>
+                <div class="content">
+                    <section>
+                        <h2>Storage</h2>
+                            $storage_body
+                    </section>
+                </div>
+            </div>
+            $js
+        </body>
+    </html>
+"@
+
+    return $html_body
+}
 
 ######################################################################################################################
 
@@ -418,11 +350,12 @@ Function Modules(){
 
  
 
-Function Read-Cluster($fileSpec){
+Function Read-Cluster(){
+    $clusters = @()
+    $Clusters_InputPath = "C:\NA-Scripts\cluster_input.txt"
+   If(-Not(Test-Path -Path $Clusters_InputPath)){
 
-   If(-Not(Test-Path -Path $fileSpec)){
-
-       Write-Log -Warning -Message "The file ""$fileSpec"" does not exist"
+       Write-Log -Warning -Message "The file ""$Clusters_InputPath"" does not exist"
 
        Exit -1
 
@@ -430,1080 +363,149 @@ Function Read-Cluster($fileSpec){
 
    Try{
 
-       $script:clusters = Get-Content -Path $fileSpec -ErrorAction Stop
+       $cluster_Input = Get-Content -Path $Clusters_InputPath -ErrorAction Stop
 
-       Write-Log -Info -Message "Read file ""$fileSpec"""
+       Write-Log -Info -Message "Read file ""$Clusters_InputPath"""
 
    }Catch{
 
-       Write-Log -Error -Message "Failed reading file ""$fileSpec"""
+       Write-Log -Error -Message "Failed reading file ""$Clusters_InputPath"""
 
        Exit -1
 
    }
+   foreach ($cluster in $cluster_Input){
+    if ($cluster -ne ""){
+        $clusters += $Cluster
+        }
+    }
+   return $clusters
 
 }
 
- 
 
 ######################################################################################################################
 
-#'Enumerate Failed disks.
+#'Fetch Cluster Name
 
 ######################################################################################################################
 
- 
-
-Function Failed-Disk(){
-
-   $script:fdc = $null
-
-     Try{
-
-        $script:fds = Get-NcDisk -ErrorAction Stop | Where-Object {$_.DiskRaidInfo.ContainerType -eq "broken"} #get broken disks n store In fds
-
-        Write-Log -Info -Message "Enumerated Disks on cluster ""$cluster"""
-
-     }Catch{
-
-        Write-Log -Error -Message "Failed enumerating disks on cluster ""$cluster"""
-
+Function Cluster-Name($cluster){
+    try{
+        Process-cluster $cluster
+        $cluster_name = (Get-NcCluster).ClusterName
+        Write-Log -Info -Message "Fetching Cluster Name"
+    }catch{
+        Write-Log -Error -Message "Failed to Fetch Cluster Name"
+        $cluster_name = "NA"
         [Int]$script:errorCount++
-
-        Break;
-
-     }
-
-     If($Null -ne $script:fds){
-
-        $script:fdc=$fds.count
-
-     }
-
-     if($fdc -gt 0){
-
-        $script:fd = "<font color=red ><b>$fdc disk(s) are down<a href=#filer$script:linc><br>Investigate</a></b></font>" #if failure of disk
-
-        If(-Not($bodyd)){
-
-           $script:bodyd ="<u>Failed Disk -$script:hostname</u>"
-
-        }Else{
-
-           $script:bodyd +="<br><u>Failed Disk -$script:hostname</u>"
-
-        }
-
-        ForEach($fdsd In $script:fds){
-
-           $script:bodyd += "<br><font color=red >$fdsd</font> is down"
-
-        }
-
-     }Else{
-
-        $script:fd = "NIL"
-
-     }
-
+        
+        break;
+    }
+    return $cluster_name
 }
 
- 
+
 
 ######################################################################################################################
 
-#'Enumerate Nodes.
+#'Connect to Cluster
 
 ######################################################################################################################
 
- 
+Function Process-cluster($cluster){
+    try{
+        $credential = Get-NcCredential -Controller $cluster -ErrorAction Stop
+        Write-Log -Info -Message "Enumerated cached credentials for cluster ""$cluster"""
+    }catch{
+    Write-Log -Error -Message "Failed enumerating cached credentials for cluster ""$cluster"""
+    [Int]$script:errorCount++
+    Break;
+    }
+    try{
+    Connect-NcController -Name $cluster -HTTPS -Credential $credential.Credential -ErrorAction Stop | Out-Null
+    
+    Write-Log -Info -Message $("Connected to cluster ""$cluster"" as user """ + $credential.Credential.UserName + """")
 
-Function Chk-Nodes(){
+    }catch{
+
+    Write-Log -Error -Message $("Connected to cluster ""$cluster"" as user """ + $credential.Credential.UserName + """")
+    
+    [Int]$script:errorCount++
+    
+    Break;
+    }
+}
+
+######################################################################################################################
+
+#'Get Nodes.
+
+######################################################################################################################
+
+
+Function Get-ClusterNodes($cluster){
 
    Try{
+        Process-cluster $cluster
 
-        $script:node = Get-NcNode -ErrorAction Stop #getting node spare disks
-
-        $script:nc   = $script:node.count
+        $nodes = Get-NcNode -ErrorAction Stop
 
         Write-Log -Info -Message "Enumerated Nodes on cluster ""$cluster"""
 
      }Catch{
 
         Write-Log -Error -Message "Failed enumerating nodes on cluster ""$cluster"""
+        $node = "NA"
 
         [Int]$script:errorCount++
 
-        Break;
-
      }
-
+    return $nodes
 }
 
- 
+######################################################################################################################
+
+#'Get Node Image Version.
 
 ######################################################################################################################
 
-#'Enumerate Spare Disks.
 
-######################################################################################################################
-
- 
-
-Function Spare-Disk(){
-
-     Chk-Nodes
-
-     $count = @()
-
-     [Int]$cnt = 0
-
-     Try{
-
-        $script:sds = Get-NcAggrspare -ErrorAction Stop # getting aggregate spare disks
-
-        Write-Log -Info -Message "Enumerated spare disks on cluster ""$cluster"""
-
-     }Catch{
-
-        Write-Log -Error -Message "Failed enumerating spare disks on cluster ""$cluster"""
-
-        [Int]$script:errorCount++
-
-        Break;
-
-     }
-
-     $spc  = $script:sds.count
-
-     $spcn = $script:sds.originalowner
-
-     $a=$b=$c=$cnt=$count=$null
-
-     $script:sd = $null #'checking count of spare disks
-
-     For($i=0;$i -lt $script:nc;$i++){
-
-        For($j=0;$j -le $spcn.count;$j++){
-
-           If($script:nc -lt 2){
-
-               If($script:node.node -Match $spcn[$j]){
-
-                   $cnt=$cnt+1            
-
-           }
-
-        }else{
-
-           If($script:node.node[$i] -Match $spcn[$j]){
-
-              $cnt=$cnt+1
-
-           }
-
-       }
-
-        }
-
-        $cnt    = $cnt-1
-
-        $count += "$cnt"
-
-        $cnt    = $null
-
-        #$count
-
-     }
-
-     For($i=0;$i -lt $nc;$i++){
-
-        If($script:nc -lt 2){
-
-           $a   = $node.Node
-
-           $b   = $count[$i]
-
-       }else{
-
-           $a   = $node.Node[$i]
-
-           $b   = $count[$i]            
-
-       }
-
-        $script:sd += "$a-<b>$b</b><br>"
-
-     }
-
-}
-
- 
-
-######################################################################################################################
-
-#'Enumerate Ethernet Ports.
-
-######################################################################################################################
-
- 
-
-Function Chk-Ports($fileSpec){
-
-     $cnct = $null
-
-     $script:ethd = $null
-
-     #echo $fileSpec
-
-     Try{
-
-        $eth = Get-NcNetPort -ErrorAction Stop
-
-        Write-Log -Info -Message "Enumerated Ports for cluster ""$cluster"""
-
-     }Catch{
-
-        Write-Log -Error -Message "Failed enumerating ports for cluster ""$cluster"""
-
-        [Int]$script:errorCount++
-
-        Break;
-
-     }
-
-     If(-Not(Test-Path -Path $fileSpec)){
-
-        Write-Log -Error -Message "The File ""$fileSpec"" does not exist"
-
-        [Int]$script:errorCount++
-
-        Break;
-
-     }
-
-     Try{
-
-        $script:one = Get-Content -Path $fileSpec -ErrorAction Stop
-
-        Write-Log -Info -Message "Read file ""$fileSpec"""
-
-     }Catch{
-
-        Write-Log -Error -Message "Failed reading file ""$fileSpec"""
-
-        [Int]$script:errorCount++
-
-        Break;
-
-     }
-
-     $one_hash = @{}
-
-     #$two_hash = @{}
-
-     #if($cluster -eq "10.33.199.61"){
-
-        For($i=0;$i -lt $one.count; $i++){
-
-           $one_hash[$one[$i]] = 0
-
-        }
-
-        For($i=0; $i -lt $eth.count; $i++){
-
-           $sta = "down"
-
-           If(($eth[$i].LinkStatus) -eq $sta){ #checking is the link status of ethernet port is down
-
-              $ethnm  = $eth[$i].Port
-
-              $ethndm = $eth[$i].Node
-
-              $cnct="$ethnm is down In $ethndm"
-
-              #echo $one_hash.ContainsKey($cnct)
-
-              #if ($script:one -notcontains($cnct)){
-
-              If(-Not ($one_hash.ContainsKey($cnct))){
-
-                 $script:bodyd += "<br><u>Ethernet port</u><br>"
-
-                 $script:bodyd += "<font color=red size=2px><i class=material-icons>error</i></font><span id=ep >$cnct</span><br>"
-
-                 $script:ethd   = "<font color=red size=5px><a href=#filer$script:linc><i class=material-icons><font color=red>error</font></i><br>investigate</a></font>"
-
-              }
-
-              #}
-
-           }
-
-        }
-
-     If($Null -eq $script:ethd){
-
-        $script:ethd = "<font color=green size=5px><body>🗹</body></font><br><b>OK<b>"
-
-     }
-
-}
-
- 
-
-######################################################################################################################
-
-#'Enumerate Aggregates.
-
-######################################################################################################################
-
- 
-
-Function Chk-Aggregates(){
-
-  Try{
-
-     $script:agrs = Get-NcAggr -ErrorAction Stop
-
-     Write-Log -Info -Message "Enumerated Aggregates on cluster ""$cluster"""
-
-  }Catch{
-
-     Write-Log -Error -Message "Failed enumerating aggregates on cluster ""$cluster"""
-
-     [Int]$script:errorCount++
-
-     Break;
-
-  }
-
-  $script:agrd = $null
-
-  $agc  = $null
-
-  $agc  = $script:agrs.state -ne "online"
-
-  $agu  = $null
-
-  $agc  = $agc.count
-
-  ForEach($agr In $script:agrs){
-
-     If($agr.state -ne "online"){
-
-        $script:agrd  += "<font color=red size=2px><i class=material-icons>error</i><br></font><font color=red><b><a href=#filer$script:linc>$agc aggr(s) is/are offline</b></font></a><br>"
-
-        $script:bodyd += "<br><u>Aggrs offline-$script:hostname</u>"
-
-        $script:bodyd += "<br><u>$agr is offline</u>"
-
-     }
-
-  } # checking aggr online/offline
-
-  For($i=0; $i -lt $script:agrs.count; $i++){
-
-     If($agrs[$i].used -gt 90 -And !($agrs[$i].Name.Contains("aggr0"))){
-
-        $agu++
-
-     }
-
-  }
-
-  For($i=0; $i -lt $script:agrs.count; $i++){
-
-     If($agrs[$i].used -gt 90 -And !($agrs[$i].Name.Contains("aggr0"))){
-
-        $script:agrd  += "<font color =cyan size =2px><i class=material-icons>warning</i></font><br><font color=black><a href=#filer$script:linc>$agu Aggrs > 90%</font></a><br>"
-
-        $script:bodyd += "<br><u><big>Aggrs > 90%-$script:hostname</big></u><br>"
-
-        Break;
-
-     }
-
-  }
-
-  ForEach($agr In $script:agrs){
-
-     If(($agr.used -gt 90) -And !($agr.Name.Contains("aggr0"))){
-
-        $a1 = $agr.name
-
-        $a2 = $agr.Used
-
-        $script:bodyd += "<font color =cyan size =2px><i class=material-icons>warning</i></font><br><font color=black><b>$a1($a2%)</b></font><br>"
-
-     }
-
-  }
-
-  If($Null -eq $script:agrd){
-
-     $script:agrd = "<font color=green size=5px><body>🗹</body></font><br><b>OK<b>" #"<font color=green size=5px><body>��</body></font><br><b>OK<b>"
-
-  }
-
-     #'------------------------------------------------------------------------
-
-     #'Enumerate Aggregate Object Stores. Might not be a use case for us
-
-     #'------------------------------------------------------------------------
-
-#     $aoss   = $null
-#
-#     $script:bodyd += "<br><br><u><big>Object Stores</big> </u>"
-#
-#     Try{
-#
-#        $aoss = Get-NcAggrObjectStore -ErrorAction Stop
-#
-#        Write-Log -Info -Message "Enumerate Aggregate Object Stores on cluster ""$cluster"""
-#
-#     }Catch{
-#
-#        Write-Log -Error -Message "Failed Enumerating Aggregate Object Stores on cluster ""$cluster"""
-#
-#        [Int]$script:errorCount++
-#
-#        continue;
-#
-#     }
-#
-#     If($Null -eq $aoss){
-#
-#        $script:bodyd += "<br>None<br>"
-#
-#     }
-#
-#     ForEach($aos In $aoss){
-#
-#        $name   = $aos.ObjectStoreName
-#
-#        $size   = cala($aos.UsedSpace)
-#
-#        $script:bodyd += "<br>$name-$size(Gb)<br>"
-#
-#     }
-
-}
-
- 
-
-######################################################################################################################
-
-#'Enumerate Volumes.
-
-######################################################################################################################
-
- 
-
-Function Chk-Volumes(){
+Function Get-Clusterimage($cluster){
 
    Try{
+        Process-cluster $cluster
 
-        $script:Vols = Get-Ncvol -ErrorAction Stop
+        $ClusterImage = (Get-NcClusterImage).CurrentVersion | Get-Unique -ErrorAction Stop
 
-        Write-Log -Info -Message "Enumerated volumes on cluster ""$script:cluster"""
-
-     }Catch{
-
-        Write-Log -Error -Message "Failed enumerating volumes on cluster ""$script:cluster"""
-
-        [Int]$script:errorCount++
-
-        Break;
-
-     }
-
-     $volsd = $null
-
-     $vc    = $script:Vols.state -ne "online"
-
-     $vc    = $vc.count
-
-     $vu    = $script:Vols.used -gt 98
-
-     $vu    = $vu.count
-
-     If($script:Vols.state -ne "online"){
-
-        $script:volsd += "<font color=red size=2px><i class=material-icons>error</i><br></font><font color=red><b><a href=#filer$script:linc>$vc vol(s) is/are offline</b></font></a><br>"
-
-        $script:bodyd += "<br><u><big>$script:Vols offline-$script:hostname</big></u>"
-
-     }
-
-     ForEach($vol In $script:Vols){
-
-        If($vol.state -ne "online"){
-
-           $svm    = $vol.vserver
-
-           $script:bodyd += "<br><font color=red size=2px><i class=material-icons>error</i></font><b>$vol is offline In SVM $svm </b><br>"
-
-        }
-
-     } #checking vol online/offline
-
-     For($i=0; $i -lt $script:Vols.count; $i++){
-
-        If($script:Vols[$i].used -gt 98 -And !($script:Vols[$i].Name.equals("vol0"))){
-
-           $script:volsd += "<font color =cyan size =2px><i class=material-icons>warning</i></font><br><font color=black><a href=#filer$script:linc>$vu $script:Vols > 90%</font></a><br>"
-
-           $script:bodyd += "<br><u>$script:Vols > 98%-$script:hostname</u><br>"
-
-           Break;
-
-        }
-
-     }
-
-     ForEach($vol In $script:Vols){
-
-        If($vol.used -gt 98 -And !($vol.Name.equals("vol0"))){
-
-           $v1=$vol.name
-
-           $v2=$vol.Used
-
-           $v3=$vol.Vserver
-
-           $v4= cala($vol.volumeautosizeattributes.maximumsize)
-
-           $v5= cala($vol.totalsize-$vol.available)
-
-           $v6=(($vol.totalsize - $vol.available)/$vol.volumeautosizeattributes.maximumsize)*100
-
-           If($v6 -gt 98){
-
-              $script:bodyd += "<font color =red size =2px><br><i class=material-icons>error</i></font><br><font color=black><b>$v1($v6 %) is nearly full</b></font><br>"
-
-           }
-
-           $script:bodyd += "<font color =cyan size =2px><i class=material-icons>warning</i></font><br><font color=black><b>$v1($v2%) SVM: $v3 ; Size- $v5 (Gb); max size- $v4 (Gb)</b></font><br>"
-
-        }
-
-     }
-
-     If($null -eq $script:volsd){
-
-        $script:volsd = "<font color=green size=5px><body>🗹</body></font><br><b>OK<b>"
-
-     }
-
-}
-
- 
-
-######################################################################################################################
-
-#'Enumerate SnapMirror relationships.      *Initialized but not invoked
-
-######################################################################################################################
-
- 
-
-Function Snap-Relation(){
-
-   $src=$dst=$script:snpm=$null
-
-     Try{
-
-        $snpms = Get-NcSnapMirror -ErrorAction Stop
-
-        Write-Log -Info -Message "Enuemrated SnapMirror relationships on cluster ""$cluster"""
+        Write-Log -Info -Message "Enumerated Cluster Version on cluster ""$cluster"""
 
      }Catch{
 
-        Write-Log -Error -Message "Failed enumerating SnapMirror relationships on cluster ""$cluster"""
+        Write-Log -Error -Message "Failed enumerating Cluster Version on cluster ""$cluster"""
+        $node = "NA"
 
         [Int]$script:errorCount++
 
-        Break;
-
      }
-
-     ForEach($script:snpm In $snpms){
-
-        $src = $script:snpm.sourcelocation
-
-        $dst = $script:snpm.destinationlocation
-
-        If($script:snpm.ishealthy.ToString() -eq "false"){
-
-           $script:snpm += "<font color =red size =2px><br><i class=material-icons>error</i></font><br><font color=red><b>$src to $dst is unhealthy</b></font>"
-
-        }
-
-     }
-
-     If($snpms.mirrorstate -eq "snapmirrored"){
-
-        $script:snpm = "<font color=green size =5px><body>🗹</body></font><br><b>OK<b>"
-
-     }Else{
-
-        $script:snpm = "No Snapmirror Relations"
-
-     }
-
+    return $ClusterImage
 }
 
- 
 
 ######################################################################################################################
 
-#'Enumerate SnapMirror lag Times.       *Initialized but not invoked
+#'Get Envirnment Status.
 
 ######################################################################################################################
 
- 
+Function Get-EnvStatus($cluster){
 
-Function Snap-Lag(){
+  $Command = "system health subsystem show -health !ok -fields subsystem"
 
-     $script:smls = $null
-
-     $LagTimeSeconds = "86400" #24 urs In seconds
-
-     Try{
-
-        $script:smlag = Get-NcSnapmirror -ErrorAction Stop | Where-Object {$_.LagTime -gt $LagTimeSeconds} #-And ($_.Vserver -NotMatch "BALLDA01" -And $_.Vserver -NotMatch "BEGADA01" -And $_.Vserver -NotMatch "BOWEDA01" -And $_.Vserver -NotMatch "COREDA03" -And $_.Vserver -NotMatch "COREDA04" -And $_.Vserver -NotMatch "DUBBDA01" -And $_.Vserver -NotMatch "DUBCDA01" -And $_.Vserver -NotMatch "GLENDA01" -And $_.Vserver -NotMatch "GOUSDA01" -And $_.Vserver -NotMatch "GRANDA01" -And $_.Vserver -NotMatch "GRFHDA01" -And $_.Vserver -NotMatch "GRFTCA01" -And $_.Vserver -NotMatch "GRFTDA03" -And $_.Vserver -NotMatch "HAYYDA01" -And $_.Vserver -NotMatch "HUNTDA01" -And $_.Vserver -NotMatch "MILLDA01" -And $_.Vserver -NotMatch "MILLDA02" -And $_.Vserver -NotMatch "MILLDA03" -And $_.Vserver -NotMatch "MILLDA04" -And $_.Vserver -NotMatch "NCLECA01" -And $_.Vserver -NotMatch "NCLEDA01" -And $_.Vserver -NotMatch "ORANDA01" -And $_.Vserver -NotMatch "PARKDA03" -And $_.Vserver -NotMatch "PARRCA04" -And $_.Vserver -NotMatch "PARRDA01" -And $_.Vserver -NotMatch "PARRDA03" -And $_.Vserver -NotMatch "PORTDA01" -And $_.Vserver -NotMatch "ROCKDA01" -And $_.Vserver -NotMatch "TAMWDA01" -And $_.Vserver -NotMatch "WAGGDA03" -And $_.Vserver -NotMatch "WAGSDA01" -And $_.Vserver -NotMatch "WOYWDA01" -And $_.Vserver -NotMatch "WYODDA01" -And $_.Vserver -NotMatch "YENNDA02" -And $_.Vserver -NotMatch "COREDA01" -And $_.Vserver -NotMatch "MITTDA01" -And $_.Vserver -NotMatch "PARRWW01" -And $_.Vserver -NotMatch "WARADA01" -And $_.Vserver -NotMatch "WOLLDA03" -And $_.Vserver -NotMatch "YASSDA01" -And $_.Vserver -NotMatch "redfda02" -And $_.Vserver -NotMatch "BURTDA01" -And $_.Vserver -NotMatch "MILLIM01" -And $_.Vserver -NotMatch "PYRMMA01" -And $_.Vserver -NotMatch "WOLNDA01" -And $_.Vserver -NotMatch "WOYWMA01" -And $_.Vserver -NotMatch "FSMET045")}
-
-        Write-Log -Info -Message "Enumerated SnapMirror Lag times on cluster ""$cluster"""
-
-     }Catch{
-
-        Write-Log -Error -Message "Failed enumerating SnapMirror Lag times on cluster ""$cluster"""
-
-        [Int]$script:errorCount++
-
-        Break;
-
-     }
-
-     $script:smls = $script:smlag.count
-
-     If(-Not($script:smlag)){
-
-        $script:smls = "No"
-
-     }Else{ #is lagtime < 24 hours
-
-        #if lagtime >24 hours
-
-        If(-Not($script:bodyd)){
-
-           $script:bodyd ="<u><big>Snap Mirror Lagtime (>24 hours)</big> </u><br>"
-
-        }Else{
-
-           $script:bodyd +="<br><u><big>Snap Mirror Lagtime (>24 hours)</big> </u><br>"
-
-        }
-
-        Foreach($smlag1 In $script:smlag){
-
-           $script:SPD1   = $smlag1.Sourcelocation
-
-           $script:SPD2   = $smlag1.Destinationlocation
-
-           $script:SPD3   = $smlag1.status
-
-           [int]$script:SPD4=[convert]::ToInt32($smlag1.LagTime,10)
-           [int]$script:SPD4=[Math]::Round(([int]$script:SPD4/3600),0) 
-
-           $script:bodyd += "<font color=red size=5px><i class=material-icons>error</i></font><span id=sml>$script:SPD1 ---> $script:SPD2 ($script:SPD3) :: Lagtime is $script:SPD4 Hrs</span><br>" # for printing the relation whose lag time is >24 hours
-
-        }
-
-     }
-
-}
-
- 
-
-######################################################################################################################
-
-#'Enumerate LUNs.
-
-######################################################################################################################
-
- 
-
-Function Chk-LUNs(){
-
-     $luns = $lund=$lunsd=$lunc=$null
-
-     Try{
-
-        $luns = Get-NcLun -ErrorAction Stop
-
-        Write-Log -Info -Message "Enumerated LUNs on cluster ""$cluster"""
-
-     }Catch{
-
-        Write-Log -Error -Message "Failed enumerating LUNs on cluster ""$cluster"""
-
-        [Int]$script:errorCount++
-
-        Break;
-
-     }
-
-     ForEach($lun In $luns){
-
-        if($lun.state -eq "online"){
-
-           <#
-
-           If($lun.thin -eq "false"){
-
-              $lund   = $lun.path
-
-              $script:bodyd += "$lund<br>"
-
-           }
-
-           #>
-
-        }Else{
-
-           $lund   = $lun.path
-
-           $script:lunsd += "<font color=red size=2px><i class=material-icons>error</i><br><b></font><font color=red>$lund is offline<b></font><br>"
-
-        }
-
-     }
-
-     If($Null -eq $lunsd){
-
-        $script:lunsd = "<font color=green size=5px><body>🗹</body></font><br><b>OK<b>"
-
-     }
-
-}
-
- 
-
-######################################################################################################################
-
-#'Enumerate the cluster health.
-
-######################################################################################################################
-
- 
-
-Function Cluster-Health(){
-
-    $command = "cluster show -health false "
-
-    $SessionID = New-SSHSession -ComputerName $cluster -Credential $credential.Credential #Connect Over SSH
-
-    Try{
-
-       $output3 = Invoke-SSHCommand -Index $sessionid.sessionid -Command $Command # Invoke Command Over SSH
-
-       Write-Log -Info -Message $("Executed Command`: """ + $([String]::Join(" ", $command)) + """ on cluster ""$cluster""")
-
-    }Catch{
-
-       Write-Log -Error -Message $("Failed Executing Command`: """ + $([String]::Join(" ", $command)) + """ on cluster ""$cluster""")
-
-       [Int]$script:errorCount++
-
-       Break;
-
-    }
-
-    if($output3.output -match ("There are no entries matching your query.")){
-
-        $script:clusd ="<font color=green size=5px><body>🗹</body></font><br><b>OK<b>"
-
-        }
-
-    else {
-
-         $script:clusd ="<font color=red size=2px><i class=material-icons>error</i><br>Unhealthy</font><br>"
-
-        }
-
-}
-
- 
-
-######################################################################################################################
-
-#'Enumerate cluster nodes Health.
-
-######################################################################################################################
-
- 
-
-Function Node-Health(){
-
-   Chk-Nodes
-
-   For($i=0; $i -lt $n.count; $i++){
-
-        If(($n[$i].IsNodeHealthy) -eq $False){ #checking if node is not healthy
-
-           $nodnm = $n[$i].NodeName
-
-           $script:nod  += "<font color=red size=5px><i class=material-icons>error</i></font><font size =2px></font><br><font color =red> <b>$nodnm is down</b></font><br>"
-
-        }
-
-   }
-
-   If($Null -eq $nod){ #if node is healthy
-
-       $script:nod = "<font color=green size=5px><body>🗹</body></font><br><b>OK<b>"
-
-   }   
-
-}
-
- 
-
-######################################################################################################################
-
-#'Enumerate network interfaces.
-
-######################################################################################################################
-
- 
-
-Function Chk-Interface(){
-
-   Try{
-
-        $script:vifsd = $null
-
-        $vifs = Get-NcNetInterface -ErrorAction Stop
-
-        Write-Log -Info -Message "Enumerated Network interfaces on cluster ""$cluster"""
-
-     }Catch{
-
-        Write-Log -Error -Message "Failed enumerating Network Interfaces on cluster ""$Cluster"""
-
-        [Int]$script:errorCount++
-
-        Break;
-
-     }
-
-     For($i=0; $i -lt $vifs.count; $i++){
-
-        $sta = "down"
-
-        If(($vifs[$i].OpStatus) -eq $sta){ # checking if opstatus is down
-
-           $vifsnm = $vifs[$i].InterfaceName
-
-           $script:vifsd += "<font color=red size=2px><i class=material-icons>error</i><br></font><font color=red><b>$vifsnm is down</b></font><br>"
-
-        }
-
-     }
-
-     If($null -eq $script:vifsd){ #if there are no issues
-
-        $script:vifsd = "<font color=green size=5px><body>🗹</body></font><br><b>OK<b>"
-
-     }
-
-}
-
- 
-
-######################################################################################################################
-
-#'Enumerate Autosupport.
-
-######################################################################################################################
-
-Function Chk-Autosupport(){
-
-    $Command = "autosupport check show"
-
-    $SessionID = New-SSHSession -ComputerName $cluster -Credential $credential.Credential
-
-    Try{
-
-       $output1 = Invoke-SSHCommand -Index $sessionid.sessionid -Command $Command -ErrorAction Stop  # Invoke Command Over SSH
-
-       #Write-Log -Info -Message $("Executed Command`: """ + $([String]::Join(" ", $command)) + """ on cluster ""$cluster""")
-
-    }Catch{
-
-       Write-Log -Error -Mesasge $("Failed Executing Command`: """ + $([String]::Join(" ", $command)) + """ on cluster ""$cluster""")
-
-       [Int]$script:errorCount++
-
-       Break;
-
-    }
-
-    If($output1.output -match ("failed     failed     failed     failed")){# if it fails
-
-       $script:ausd = "<font color=red size=5px><i class=material-icons>error</i></font><br><font size=1px color= red><b>Failed</font></b>"
-
-    }Else{ #else put a green symbol
-
-       $script:ausd = "<font color=green size=5px><body>🗹</body></font><br><b>OK<b>"
-
-    }
-
-}
-
- 
-
-######################################################################################################################
-
-#'Enumerate Stale snapshots.       *Initialized not Invoked.
-
-######################################################################################################################
-
- 
-
-Function Chk-StaleSnapshot(){
-
-   If($cluster.Contains("61")){
-
-        $stale = $null
-
-        $date  = Get-Date
-
-        $month = $date.Month
-
-        $day   = $date.day
-
-        Try{
-
-           $snap = Get-NcSnapshot -ErrorAction Stop
-
-           Write-Log -Info -Message "Enumerated Snapshots on cluster ""$cluster"""
-
-        }Catch{
-
-           Write-Log -Error -Message "Failed enumerating Snapshots on cluster ""$cluster"""
-
-           [Int]$script:errorCount++
-
-           Break;
-
-        }
-
-        $script:snapm = $null
-
-        $stale = $snap | Where-Object { $_.Created -lt (Get-Date).AddDays(-90) -And ($_.Dependency -ne "snapmirror" -And $_.Dependency -ne "vserverdr,snapmirror" -And $_.Dependency -ne "busy,vclone,snapmirror")}
-
-        #$stale=$snap | ?{ $_.Created -lt (Get-Date).AddDays(-60) -And ( $_.Dependency -ne "snapmirror" -And $_.Dependency -ne "vserverdr,snapmirror" -And $_.Dependency -ne "busy,vclone,snapmirror" )}
-
-        If($Null -ne $stale){
-
-           $script:bodyd += "<br><b><u>STALE SNAPSHOTS</u></b><br>"
-
-        }
-
-        For($i=0; $i -lt $stale.count; $i++){
-
-           $script:snapm += Write-Output "<font color=red size=2px><i class=material-icons>error</i></font>"$stale[$i].name"-"$stale[$i].volume"-"$stale[$i].vserver"<br>"
-
-        }
-
-        $script:bodyd += "$script:snapm<br>"
-
-     }
-
-}
-
- 
-
-######################################################################################################################
-
-#'Enumerate Cluster Peer relationships.
-
-######################################################################################################################
-
- 
-
-Function Chk-PeerRelation(){
-
-     $script:peerd = $null
-
-     Try{
-
-        $peer = Get-NcClusterPeer -ErrorAction Stop
-
-        Write-Log -Info -Message "Enumerated cluster peer relationships"
-
-     }Catch{
-
-        Write-Log -Error -Message "Failed enumerating cluster peer relationships"
-
-        [Int]$script:errorCount++
-
-        Break;
-
-     }
-
-     if($peer.count -gt 1){
-
-       For($i=0; $i -lt $peer.count; $i++){
-
-           If(($peer[$i].availability) -ne "available"){#checking if node is not healthy
-
-               $peernm  = $peer[$i].clustername
-
-               $script:peerd  +="<font color=red size=5px><i class=material-icons>error</i></font><font size =2px></font><br><font color =red> <b>$peernm is down</b></font><br>"
-
-        }
-
-       }
-
-     }else{
-
-           If(($peer.availability) -ne "available"){#checking if node is not healthy
-
-               $peernm  = $peer.clustername
-
-               $script:peerd  +="<font color=red size=5px><i class=material-icons>error</i></font><font size =2px></font><br><font color =red> <b>$peernm is down</b></font><br>"
-
-       }
-
-    }
-
-         
-
-     if($null -eq $script:peerd){ #if node is healthy
-
-        $script:peerd = "<font color=green size=5px><body>🗹</body></font><br><b>OK<b>"
-
-     }
-
-}
-
- 
-
-######################################################################################################################
-
-#'Enumerate cluster environment health.
-
-######################################################################################################################
-
-Function Chk-Environment(){
-
-  $Command = "system health subsystem show"
+  $credential = Get-NcCredential -Controller $cluster -ErrorAction Stop
 
   $SessionID = New-SSHSession -ComputerName $cluster -Credential $credential.Credential
+
 
   Try{
 
@@ -1521,17 +523,109 @@ Function Chk-Environment(){
 
     }
 
-    $output = [string]$output.output
+    $output = $output.output
+    return $output
+}
 
-    If($output.contains("ok")){ #if everythings ok
+######################################################################################################################
 
-       $script:subsd = "<font color=green size=5px><body>🗹</body></font><br><b>OK<b>"
+#'Get Chassis Status.
 
-    }Else{
+######################################################################################################################
 
-       $script:subsd = "<font color=red size=2px><i class=material-icons>error</i></font><br><font size=1px color= red><b>Error</font></b>" #"<font color=red size=5px><i class=material-icons>error</i></font><br><font size=1px color= red><b>Failed</font></b>"
+
+Function Get-ChassisStatus($cluster){
+
+  $Command = "system chassis fru show -status !ok -fields fru-name "
+
+  $credential = Get-NcCredential -Controller $cluster -ErrorAction Stop
+
+  $SessionID = New-SSHSession -ComputerName $cluster -Credential $credential.Credential
+
+
+  Try{
+
+       $output = Invoke-SSHCommand -Index $sessionid.sessionid -Command $Command -ErrorAction Stop  # Invoke Command Over SSH
+
+       Write-Log -Info -Message $("Executed command`: """ + $([String]::Join(" ", $command)) + """ on cluster ""$cluster""")
+
+    }Catch{
+
+       Write-Log -Error -Message $("Failed executing command`: """ + $([String]::Join(" ", $command)) + """ on cluster ""$cluster""")
+
+       [Int]$script:errorCount++
+
+       Break;
 
     }
+
+    $output = $output.output
+    return $output
+}
+
+######################################################################################################################
+
+#'Get Failed Disks.
+
+######################################################################################################################
+
+
+
+Function Failed-Disk($cluster){
+
+     Try{
+        Process-cluster $cluster
+
+        $failedDisks = Get-NcDisk -ErrorAction Stop | Where-Object {$_.DiskRaidInfo.ContainerType -eq "broken"}
+
+
+        Write-Log -Info -Message "Enumerated Disks on cluster ""$cluster"""
+
+     }Catch{
+
+        Write-Log -Error -Message "Failed enumerating disks on cluster ""$cluster"""
+
+        [Int]$script:errorCount++
+
+        Break;
+
+     }
+    return $failedDisks
+}
+
+######################################################################################################################
+
+#'Enumerate the cluster health.
+
+######################################################################################################################
+
+ 
+
+Function Cluster-Health($cluster){
+
+    $Command = "cluster show -health false "
+
+    $credential = Get-NcCredential -Controller $cluster -ErrorAction Stop
+
+    $SessionID = New-SSHSession -ComputerName $cluster -Credential $credential.Credential #Connect Over SSH
+
+    Try{
+
+       $output = Invoke-SSHCommand -Index $sessionid.sessionid -Command $Command # Invoke Command Over SSH
+
+       Write-Log -Info -Message $("Executed Command`: """ + $([String]::Join(" ", $command)) + """ on cluster ""$cluster""")
+
+    }Catch{
+
+       Write-Log -Error -Message $("Failed Executing Command`: """ + $([String]::Join(" ", $command)) + """ on cluster ""$cluster""")
+
+       [Int]$script:errorCount++
+
+       Break;
+
+    }
+    $output = $output.output
+    return $output
 
 }
 
@@ -1539,25 +633,37 @@ Function Chk-Environment(){
 
 ######################################################################################################################
 
-#'Enumerate Service-Processor Status
+#'Enumerate Spare Disks.
 
 ######################################################################################################################
 
  
 
-Function Chk-SPStatus(){
+Function Spare-Disk($cluster){
+
+
+     $count = @()
+
+     $nodeList = @()
+
+     $spareList = @()
+
+     [Int]$nodeSpareCount = 0
+
+     $node = (Get-ClusterNodes($cluster))
+     $nodeCount = $node.count
 
      Try{
+        
+        Process-cluster $cluster
 
-        $script:spout = Get-NcServiceProcessor -ErrorAction Stop #getting Service-Processiors
+        $spareDisks = Get-NcAggrspare -ErrorAction Stop # getting aggregate spare disks
 
-        $script:spc   = $script:spout.count
-
-        Write-Log -Info -Message "Enumerated Service-Processior on cluster ""$cluster"""
+        Write-Log -Info -Message "Enumerated spare disks on cluster ""$cluster"""
 
      }Catch{
 
-        Write-Log -Error -Message "Failed enumerating Service-Processior on cluster ""$cluster"""
+        Write-Log -Error -Message "Failed enumerating spare disks on cluster ""$cluster"""
 
         [Int]$script:errorCount++
 
@@ -1565,149 +671,66 @@ Function Chk-SPStatus(){
 
      }
 
-     $sps = $script:spout.status
+     $spareDiskCount  = $spareDisks.count
 
-     $spaue = $script:spout.isautoupdateenabled
+     $spareDiskOwner = $spareDisks.originalowner
 
-     $sphc = 0
+     $script:sd = $null #'checking count of spare disks
 
-     for([int]$i = 0;$i -lt $script:spc;$i++){
+     For($i=0;$i -lt $nodeCount;$i++){
 
- 
+        For($j=0;$j -le $spareDiskCount;$j++){
 
-       If($sps[$i] -eq "online" -and $spaue[$i] -eq "True" ){ #if everythings ok
+           If($nodeCount -lt 2){
 
-           $sphc ++
+               If($node.node -Match $spareDiskOwner[$j]){
 
-           }
-
-   }
-
-     If($sphc -eq $script:spc){
-
-           $script:spsd = "<font color=green size=5px><body>🗹</body></font><br><b>OK<b>"
-
-       }Else{
-
-           $script:spsd = "<font color=red size=2px><i class=material-icons>error</i></font><br><font size=1px color= red><b>Error</font></b>" #"<font color=red size=5px><i class=material-icons>error</i></font><br><font size=1px color= red><b>Failed</font></b>"
-
-       }
-
-}
-
-######################################################################################################################
-
-#'Check HA Status
-
-######################################################################################################################
-
- 
-
-Function Chk-HAStatus(){
-
-      Chk-Nodes
-
-      $hcount = $null
-
-      for ($i = 0;$i -lt $node.count;$i++){
-
-           Try{
-
-               $script:has = Get-NcClusterHa $script:node[$i] -ErrorAction  SilentlyContinue
-
-               Write-Log -Info -Message "Fetching HA Status on Node ""$script:node"""
-
-           }Catch{
-
-           Write-Log -Error -Message "Failed to fetch HA Status on Node ""$script:node"""
-
-           [Int]$script:errorCount++
-
-           Break;
+                   $nodeSpareCount=$nodeSpareCount+1          
 
            }
 
-           if($has){
+        }else{
 
-               if($has. NodeIsHAEnabled -match "True" -and $has.TakeoverState -match "not_in_takeover"){
+           If($node.node[$i] -Match $spareDiskOwner[$j]){
 
-                   $hcount++
+              $nodeSpareCount=$nodeSpareCount+1
 
-               }
+                }
 
-           }
+            }
 
-       }
+        }
 
-       if($hcount -eq $script:nc){
+        $nodeSpareCount = $nodeSpareCount - 1
 
-           $script:hasd = "<font color=green size=5px><body>🗹</body></font><br><b>OK<b>"
+        $count += "$nodeSpareCount"
+
+        $nodeSpareCount = 0
+
+        #$count
+
+     }
+
+     For($i=0;$i -lt $nodeCount;$i++){
+
+        If($nodeCount -lt 2){
+
+           $nodeList += $node.Node
+
+            $spareList += $count[$i]
 
        }else{
 
-           $script:hasd = "<font color=red size=2px><i class=material-icons>HA Degraded</i></font><br><font size=1px color= red><b>Error</font></b>"
+           $nodeList += $node.Node[$i]
+
+           $spareList += $count[$i]        
 
        }
 
-}
+        
 
- 
-
- 
-
-######################################################################################################################
-
-#'Event for last 12 Hours EMERGENCY, ALERT, CRITICAL , ERROR
-
-######################################################################################################################
-
- 
-
-Function EventLogShow(){
-
-   $script:sevs = "EMERGENCY", "ALERT", "ERROR" #, "DEBUG"
-
-   $script:emsmsgd = $null
-
-   $script:emsmsgd = "<span id=filer$script:linc><br><b><u><big>Last 12 Hour Event logs on<b><u>$script:hostname</b></u></big></u></b><br></span>"
-
-   foreach($script:sev in $script:sevs){
-
-       Try{
-
-           $script:emsmsg = (Get-NcEmsMessage -Severity $script:sev -StartTime (Get-Date).AddHours(-12)).Event |Get-Unique
-
-           Write-Log -Info -Message "Fetching ""$script:sev"" Events from cluster ""$cluster"""
-
-       }Catch{
-
-           Write-Log -Error -Message "Failed enumerating Service-Processior on cluster ""$cluster"""
-
-           [Int]$script:errorCount++
-
-           Break;
-
-       }
-
-       $script:emsmsgd += "<br><u>$script:sev Events</u><br>"
-
-       if($script:emsmsg){
-
-           ForEach ($emsgg in $script:emsmsg){
-
-           $script:emsmsgd +="<font color =red size =2px><br><i class=material-icons>error</i></font><font color=black><b>   $emsgg  </b></font><br>"
-
-           }
-
-       }else{
-
-           $script:emsmsgd +="<font color=green size=2px><body>🗹</body></font><b>No $script:sev Events<b>"
-
-       }
-
- 
-
-   }
+     }
+    return $nodeList, $spareList
 
 }
 
@@ -1715,470 +738,1159 @@ Function EventLogShow(){
 
 ######################################################################################################################
 
-#'Process the clusters.
+#'Enumerate Aggregates.
 
 ######################################################################################################################
 
  
 
-Function Process-clusters(){
+Function aggregate-status($cluster){
+    
+  $aggregateOffline = @()
+  $aggregateHighUtil = @()
 
-   ForEach($cluster In $script:clusters){
+  Try{
+     
+     Process-cluster $cluster
 
-       Do{ [String]$cluster = $script:clusters
+     $aggregates = Get-NcAggr -ErrorAction Stop
 
-           #'------------------------------------------------------------------------
+     Write-Log -Info -Message "Enumerated Aggregates on cluster ""$cluster"""
 
-           #'Enumerate the cluster credentials from the cache.
+  }Catch{
 
-           #'------------------------------------------------------------------------
+     Write-Log -Error -Message "Failed enumerating aggregates on cluster ""$cluster"""
 
-           Try{
+     [Int]$script:errorCount++
 
-               $credential = Get-NcCredential -Controller $cluster -ErrorAction Stop
-
-               Write-Log -Info -Message "Enumerated cached credentials for cluster ""$cluster"""
-
-           }Catch{
-
-               Write-Log -Error -Message "Failed enumerating cached credentials for cluster ""$cluster"""
-
-               [Int]$script:errorCount++
-
-               Break;
-
-           }
-
-           #'------------------------------------------------------------------------
-
-           #'Ensure the credentials are valid.
-
-           #'------------------------------------------------------------------------
-
-           If($Null -ne $credential){
-
-               If(([String]::IsNullOrEmpty($credential.Credential.UserName)) -Or ([String]::IsNullOrEmpty($credential.Credential.GetNetworkCredential().Password))){
-
-                   Write-Log -Error -Message "The username or password for cluster ""$cluster"" is invalid"
-
-                   [Int]$script:errorCount++
-
-                   Break;
-
-               }Else{
-
-                   Write-Log -Info -Message $("Validated credentials for cluster ""$cluster"". Connecting to cluster ""$cluster"" as user """ + $credential.Credential.UserName + """")
-
-               }
-
-           }Else{
-
-               Write-Log -Error -Message "The credentials for cluster ""$cluster"" are invalid"
-
-               [Int]$script:errorCount++
-
-               Break;
-
-           }
-
-           #'------------------------------------------------------------------------
-
-           #'Connect to the cluster.
-
-           #'------------------------------------------------------------------------
-
-           Try{
-
-               Connect-NcController -Name $cluster -HTTPS -Credential $credential.Credential -ErrorAction Stop | Out-Null
-
-               Write-Log -Info -Message $("Connected to cluster ""$cluster"" as user """ + $credential.Credential.UserName + """")
-
-           }Catch{
-
-               Write-Log -Error -Message $("Connected to cluster ""$cluster"" as user """ + $credential.Credential.UserName + """")
-
-               [Int]$script:errorCount++
-
-               Break;
-
-           }
-
-           #'------------------------------------------------------------------------
-
-           #'Chk the cluster is an IP Address and perform a DNS reverse lookup.
-
-           #'------------------------------------------------------------------------
-
-           $ip = $cluster -As [IPAddress]
-
-           If($Null -ne $ip){
-
-               [String]$fqdn = Invoke-DnsReverseLookup -IPAddress $cluster
-
-               If($fqdn.Contains(".")){
-
-                   [String]$script:hostname = $fqdn.Split(".")[0]
-
-               }Else{
-
-                   [String]$script:hostname = $cluster
-
-               }
-
-           }Else{
-
-               [String]$script:hostname = $cluster
-
-           }
-
-           $script:bodyd +="<span id=filer$script:linc><br><b><u><big>Highlights of <b><u>$script:hostname</b></u></big></u></b><br></span>"
-
-           Failed-Disk
-
-           Chk-Nodes
-
-           Spare-Disk
-
-           if($first -eq $null){
-
-           Chk-Ports($fileSpec_port1)
-
-           }else{
-
-           Chk-Ports($fileSpec_port2)
-
-           }
-
-           Chk-Aggregates
-
-           Chk-Volumes
-
-           Snap-Relation     #Function Initialized but not invoked
-
-           Snap-Lag     #Function Initialized but not invoked
-
-           Chk-LUNs
-
-           Cluster-Health
-
-           Node-Health
-
-           Chk-Interface
-
-           Chk-Autosupport
-
-           Chk-StaleSnapshot     #Function Initialized but not invoked
-
-           if ($cluster -notmatch("10.63.236.41")){
-
-               Chk-PeerRelation
-
-               }
-           else{
-
-                $script:peerd="<fontx><body><b>NA<b></body></font>"
-
-               }
-
-           Chk-Environment
-
-           Chk-SPStatus
-
-           Chk-HAStatus
-
-           #EventLogShow
-
-           #'storing the values of the collected information In a variable
-
-           $script:body += "<tr bgcolor=white align=center><TD><b>$script:hostname</b></TD>","<td>$script:fd</td>","<TD width=80>$script:sd</TD>","<TD>$script:clusd</TD>","<TD>$script:vifsd</TD>","<TD> $script:agrd</TD>","<TD>$script:volsd</TD>","<TD>$script:lunsd</TD>","<TD>$script:snpm </TD>","<TD><a href=#filer$script:linc>$smls issue(s) found</a></TD>","<TD>$script:peerd</TD>","<TD>$script:ausd</TD>","<TD>$script:subsd</TD>","<TD>$script:nod</TD>","<TD>$script:ethd</TD>","<TD>$script:spsd</TD>","<TD>$script:hasd</TD>","</tr>"
-
-           $script:linc += 1
-
-       }until($True)
+     Break;
 
   }
 
-       $script:body += "</Table>"
 
+  ForEach($aggregate In $aggregates){
+
+     If($aggregate.state -ne "online"){
+        
+        $aggregateOffline += $aggregate.name
+
+     }
+
+  }
+   # checking aggr online/offline
+
+  ForEach($aggregate In $aggregates){
+
+     If($aggregate.used -gt 90 -And !($aggregate.Name.Contains("aggr0_"))){
+
+        $aggregateHighUtil += $aggregate.name
+
+     }
+
+  }
+    return $aggregateOffline, $aggregateHighUtil
 }
-
  
+######################################################################################################################
+
+#'Enumerate Volumes.
 
 ######################################################################################################################
 
-#'Set the email report Header.
-
-######################################################################################################################
-
-Function Mail-Header(){
-
-   if($script:first -eq $null){
-
  
 
-       $script:msgBody = "Hi Team,<br><br>
-
-
-       The Storage Daily Health Check Script has been excecuted:<br><br>
-
- 
-
-       <b>The report output is better viewed In CHROME browser</b><br><br>
-
- 
-
-       Kindly, find the summary of the Storage health Check report below: <br><br>"
-
+Function Get-VolumeStatus($cluster){
     
+    $volumeOffline = @()
+    $volumeHighUtil = @()
 
-       $script:msgBody += "<b><u>Cenitex Tier 4 STaaS</b></u><br><br>"
+   Try{
+        
+        Process-cluster $cluster
 
-       $script:msgBody += "<table  cellpadding=3 cellspacing=1  bgcolor=#FF8F2F>"
+        $Volumes = Get-Ncvol -ErrorAction Stop
 
-       $script:msgBody += "<tr>"
+        Write-Log -Info -Message "Enumerated volumes on cluster ""$cluster"""
 
-       $script:msgBody += "<td bgcolor=#DDDDDD><FONT face=Verdana size=1.5 ><b>Storage Health Checks</b></font></td>"
+     }Catch{
 
-       $script:msgBody += "</tr>"
+        Write-Log -Error -Message "Failed enumerating volumes on cluster ""$cluster"""
 
-       $script:msgBody += "<tr>"
+        [Int]$script:errorCount++
 
-       $script:msgBody += "<td bgcolor=white><FONT face=Verdana size=1.5 >$script:body</font></td>"
+        Break;
 
-       $script:msgBody += "</tr>"
+     }
+     foreach($volume in $Volumes){
 
-       $script:msgBody += "<link href=https://fonts.googleapis.com/icon?family=Material+Icons rel=stylesheet>"
+        If($Volume.state -ne "online"){
+            
+            $volumeOffline += $Volume.name
+        }
+     } #checking vol online/offline
 
-       $script:first = $script:bodyd
+     foreach($volume in $Volumes){
 
-    }else{
+        $LUNVolumes = (Get-NcLun).Volume
 
-       $script:msgBody += "<br><br>"
+        If($Volume.used -gt 96 -And !($Volume.Name.Contains("vol0")) -and $Volume.Name -notin $LUNVolumes){
 
-       $script:msgBody +="<b><u>MSS Management</b></u><br><br>"
+            $volumeHighUtil += $Volume.name
 
-       $script:msgBody += "<table  cellpadding=3 cellspacing=1  bgcolor=#FF8F2F>"
+        }
 
-       $script:msgBody += "<tr>"
+     }
+     return $volumeOffline, $volumeHighUtil
+}
 
-       $script:msgBody += "<td bgcolor=#DDDDDD><FONT face=Verdana size=1.5 ><b>Storage Health Checks</b></font></td>"
 
-       $script:msgBody += "</tr>"
+######################################################################################################################
 
-       $script:msgBody += "<tr>"
+#'Enumerate Ethernet Ports.
 
-       $script:msgBody += "<td bgcolor=white><FONT face=Verdana size=1.5 >$script:body</font></td>"
+######################################################################################################################
 
-       $script:msgBody += "</tr>"
+ 
 
-       $script:msgBody += "<link href=https://fonts.googleapis.com/icon?family=Material+Icons rel=stylesheet>"
+Function port-status($cluster){
+    
+     $portDown = @()
 
-   }
+     $portDownlist = @()
 
+     Try{
+        Process-cluster $cluster
+        $ports = Get-NcNetPort -ErrorAction Stop
+
+        Write-Log -Info -Message "Enumerated Ports for cluster ""$cluster"""
+
+     }Catch{
+
+        Write-Log -Error -Message "Failed enumerating ports for cluster ""$cluster"""
+
+        [Int]$script:errorCount++
+
+        Break;
+
+     }
+     $portExceptionPath = "C:\NA-Scripts\port_exception.txt"
+     If(-Not(Test-Path -Path $portExceptionPath)){
+
+        Write-Log -Error -Message "The File ""$portExceptionPath"" does not exist"
+
+        [Int]$script:errorCount++
+
+        Break;
+
+     }
+
+     Try{
+
+        $portException = Get-Content -Path $portExceptionPath -ErrorAction Stop
+
+        Write-Log -Info -Message "Read file ""$portExceptionPath"""
+
+     }Catch{
+
+        Write-Log -Error -Message "Failed reading file ""$portExceptionPath"""
+
+        [Int]$script:errorCount++
+
+        Break;
+
+     }
+     foreach($port in $ports){
+        if ($port.LinkStatus -eq "down"){
+            
+            $portName = $port.Port
+
+            $portNode = $port.Node
+
+            $exceptionCheck = "$portName is down In $portNode"
+
+            if ($exceptionCheck -notin $portException){
+
+                $portDownlist += $exceptionCheck
+                $portDown += $portName
+
+            }
+        }
+     }
+     return $portDownlist, $portDown
 }
 
  
 
 ######################################################################################################################
 
-#'Set the email report body.
+#'Enumerate LUNs.
 
 ######################################################################################################################
 
  
 
-Function Mail-Body(){
+Function LUNs-Status($cluster){
 
-   If($script:bodyd){
+    $lunOffline = @()
+    $lunHighUtil = @()
 
-       $script:msgBody += "<tr>"
+     Try{
+        
+        Process-cluster $cluster
 
-       $script:msgBody += "<td bgcolor=#DDDDDD><FONT face=Verdana size=1.5 ><b><big><big>Highlights</big></big></b></font></td>"
+        $luns = Get-NcLun -ErrorAction Stop
 
-       $script:msgBody += "</tr>"
+        Write-Log -Info -Message "Enumerated LUNs on cluster ""$cluster"""
 
-       $script:msgBody += "<tr>"
+     }Catch{
 
-       $script:msgBody += "<td bgcolor=white><FONT face=Verdana size=1.5 >$script:bodyd</font></td>"
+        Write-Log -Error -Message "Failed enumerating LUNs on cluster ""$cluster"""
 
-       $script:msgBody += "</tr>"
+        [Int]$script:errorCount++
 
-       $script:msgBody += "<tr>"
+        Break;
 
-       #$script:msgBody += "<td bgcolor=#DDDDDD><FONT face=Verdana size=1.5 ><b><big><big>Last 12Hr Event Logs</big></big></b></font></td>"
+     }
 
-       #$script:msgBody += "</tr>"
+     ForEach($lun In $luns){
 
-       #$script:msgBody += "<tr>"
+        if($lun.state -ne "online"){
 
-       #$script:msgBody += "<td bgcolor=white><FONT face=Verdana size=1.5 >$script:emsmsgd</font></td>"
+           $lunOffline += $lun.path
 
-       $script:msgBody += "</tr>"
+        }
 
-   }
+     }
+     ForEach($lun In $luns){
+        
+        $lunSize = [Long]($lun.Size)
+        $lunUsed = [Long]($lun.SizeUsed)
+        $lunPercentUsed = [Long]($lunUsed/$lunSize)*100
+        if ($lunPercentUsed -gt 96){
+            $lunHighUtil += $lun.path
+        }
 
-   $script:msgBody += "</table>"
-
+     }
+     return $lunOffline, $lunHighUtil
 }
 
  
 
 ######################################################################################################################
 
-#'Set the email report Tail.
+#'Enumerate network interfaces.
 
 ######################################################################################################################
 
  
 
-Function Mail-Tail(){
+Function Interface-Status($cluster){
 
-   $script:linc = $null
+   $InterfaceDownlist = @()
 
-   $script:msgBody += "<br>Next Health Check report will be submitted by $((Get-Date).AddDays(1).DayOfWeek) 6:00 AM , Australian Eastern Standard Time (AEST).<br>
-
-   <br>Regards<br>
-
-   Netapp PS Team"
-
-   $msgBody += "</table>"
-
-}
-
- 
-
-######################################################################################################################
-
-#'Delete the file if it exists.
-
-######################################################################################################################
-
- 
-
-Function Delete-Files($fileSpec){
-
-   
-
-   If((Test-Path $fileSpec) -eq $True){
-
-       Try{
-
-           Remove-Item $fileSpec -ErrorAction Stop
-
-           Write-Log -Info -Message "Deleted file ""$fileSpec"""
-
-       }Catch{
-
-           Write-Log -Error -Message "Failed deleting file ""$fileSpec"""
-
-           [Int]$script:errorCount++
-
-   }
-
-}
-
-}
-
- 
-
-######################################################################################################################
-
-#'Create the file.
-
-######################################################################################################################
-
- 
-
-Function Create-File($fileSpec){
+   $lifExceptionPath = "C:\NA-Scripts\lif_exception.txt"
 
    Try{
 
-       Add-Content -Path $fileSpec -Value $script:msgBody -ErrorAction Stop
+        Process-cluster $cluster
 
-       Write-Log -Info -Message "Created ""$fileSpec"""
+        $Interfaces = Get-NcNetInterface -ErrorAction Stop
 
-   }Catch{
+        Write-Log -Info -Message "Enumerated Network interfaces on cluster ""$cluster"""
 
-       Write-Log -Error -Message "Failed creating file ""$fileSpec"""
+     }Catch{
+
+        Write-Log -Error -Message "Failed enumerating Network Interfaces on cluster ""$Cluster"""
+
+        [Int]$script:errorCount++
+
+        Break;
+
+     }
+     If(-Not(Test-Path -Path $lifExceptionPath)){
+
+        Write-Log -Error -Message "The File ""$lifExceptionPath"" does not exist"
+
+        [Int]$script:errorCount++
+
+        Break;
+
+     }
+
+     Try{
+
+        $lifException = Get-Content -Path $lifExceptionPath -ErrorAction Stop
+
+        Write-Log -Info -Message "Read file ""$lifExceptionPath"""
+
+     }Catch{
+
+        Write-Log -Error -Message "Failed reading file ""$lifExceptionPath"""
+
+        [Int]$script:errorCount++
+
+        Break;
+
+     }
+
+     ForEach($Interface in $Interfaces){
+
+        
+        If(($Interface.OpStatus) -eq "down"){ # checking if opstatus is down
+
+           $InterfaceDown = $Interface.InterfaceName
+
+            if ($InterfaceDown -notin $lifException){
+
+                $InterfaceDownlist += $InterfaceDown
+
+            }
+        }
+
+     }
+    return $InterfaceDownlist
+
+}
+
+
+######################################################################################################################
+
+#'Enumerate SnapMirror lag Times.
+
+######################################################################################################################
+
+ 
+
+Function Snapmirror-Status($cluster){
+
+
+     $snapmirrorHighLag = @()
+
+     $snapmirrorUnhealthy = @()
+
+     [int]$LagTimeSeconds = 86400 #24 urs In seconds
+
+     Try{
+        
+        Process-cluster $cluster
+
+        $snapmirrors = Get-NcSnapmirror -ErrorAction Stop
+
+        Write-Log -Info -Message "Enumerated SnapMirror State and  Lag times on cluster ""$cluster"""
+
+     }Catch{
+
+        Write-Log -Error -Message "Failed enumerating SnapMirror State and Lag times on cluster ""$cluster"""
+
+        [Int]$script:errorCount++
+
+        Break;
+
+     }
+
+     foreach ($snapmirror in $snapmirrors){
+        
+        if ($snapmirror.state -ne "Snapmirrored"){
+            
+            $snapmirrorUnhealthy += $snapmirror.SourceLocation
+        }
+    }
+
+     foreach ($snapmirror in $snapmirrors){
+
+        [int]$snapmirrorLag = ($snapmirror.LagTime)
+        
+        if ($snapmirrorLag -gt $LagTimeSeconds){
+            
+            $snapmirrorHighLag += $snapmirror.SourceLocation
+        }
+    }
+    return $snapmirrorUnhealthy, $snapmirrorHighLag
+}
+
+######################################################################################################################
+
+#'Enumerate the Ifgrp Status.
+
+######################################################################################################################
+
+ 
+
+Function Get-ifgrpStatus($cluster){
+
+    $Command = "ifgrp show -activeports !full -fields ifgrp"
+
+    $credential = Get-NcCredential -Controller $cluster -ErrorAction Stop
+
+    $SessionID = New-SSHSession -ComputerName $cluster -Credential $credential.Credential #Connect Over SSH
+
+    Try{
+
+       $output = Invoke-SSHCommand -Index $sessionid.sessionid -Command $Command # Invoke Command Over SSH
+
+       Write-Log -Info -Message $("Executed Command`: """ + $([String]::Join(" ", $command)) + """ on cluster ""$cluster""")
+
+    }Catch{
+
+       Write-Log -Error -Message $("Failed Executing Command`: """ + $([String]::Join(" ", $command)) + """ on cluster ""$cluster""")
 
        [Int]$script:errorCount++
 
-}
+       Break;
+
+    }
+    $output = $output.output
+    return $output
 
 }
 
- 
+######################################################################################################################
+
+#'Get Vserver
 
 ######################################################################################################################
 
-#'Send Email
+
+Function Get-vserver($cluster){
+    $vserverNames = @()
+    $vserverStates = @()
+
+   Try{
+        Process-cluster $cluster
+
+        $vservers = Get-NcVserver -ErrorAction Stop
+
+        Write-Log -Info -Message "Enumerated Vserver on cluster ""$cluster"""
+
+     }Catch{
+
+        Write-Log -Error -Message "Failed enumerating Vserver on cluster ""$cluster"""
+        $node = "NA"
+
+        [Int]$script:errorCount++
+
+        Break;
+
+     }
+     $cserverexception = "admin", "node", "system"
+     foreach($vserver in $vservers){
+        
+        $vserverState = $vserver.OperationalState
+        $vserverType = $vserver.VserverType
+        if ("running" -notin $vserverState -and $vserverType -notin $cserverexception){
+            
+            $vserverStates += $vserverState
+            $vserverNames += $vserver.VserverName
+        }
+     
+     }
+    return $vserverStates, $vserverNames
+}
 
 ######################################################################################################################
 
-Function mail-Mod(){
+#'Enumerate the Ifgrp Status.
 
- $date=get-date
-
- $day=$date.Day
-
- $month=$date.Month
-
- $year=$date.Year
-
- $From = "Daily-health-check@cenitex.staas.netapp.com"
-
- $To = "ng-CenitexMS@netapp.com"
-
- $Attachment = $script:fileSpec_out
-
- $Subject = "Cenitex  STaaS Daily Health Check ($day/$month/$year)"
-
- $Body = "Summary"
+######################################################################################################################
 
  
 
- $SMTPServer = "10.61.94.20"
+Function Get-acpStatus($cluster){
 
- Send-MailMessage -From $From -to $To -Subject $Subject -Body $msgBody -BodyAsHtml -SmtpServer $SMTPServer -Attachments $Attachment
+    $Command = "acp show -connection-status !active -fields node"
 
+    $credential = Get-NcCredential -Controller $cluster -ErrorAction Stop
+
+    $SessionID = New-SSHSession -ComputerName $cluster -Credential $credential.Credential #Connect Over SSH
+
+    Try{
+
+       $output = Invoke-SSHCommand -Index $sessionid.sessionid -Command $Command # Invoke Command Over SSH
+
+       Write-Log -Info -Message $("Executed Command`: """ + $([String]::Join(" ", $command)) + """ on cluster ""$cluster""")
+
+    }Catch{
+
+       Write-Log -Error -Message $("Failed Executing Command`: """ + $([String]::Join(" ", $command)) + """ on cluster ""$cluster""")
+
+       [Int]$script:errorCount++
+
+       Break;
+
+    }
+    $output = $output.output
+    return $output
+
+}
+
+######################################################################################################################
+
+#'Get Service Processor Status
+
+######################################################################################################################
+
+
+Function Get-SPStatus($cluster){
+
+    $SPDownNode = @()
+
+   Try{
+        Process-cluster $cluster
+
+        $service_processors = Get-NcServiceProcessor -ErrorAction Stop
+
+        Write-Log -Info -Message "Enumerated Service Processor on cluster ""$cluster"""
+
+     }Catch{
+
+        Write-Log -Error -Message "Failed enumerating Service Processor on cluster ""$cluster"""
+        $node = "NA"
+
+        [Int]$script:errorCount++
+
+
+     }
+
+     foreach ($service_processor in $service_processors){
+        $sp_status = $service_processor.Status
+        if ($sp_status -notcontains "online"){
+            $SPDownNode += $service_processor.node
+        }
+     }
+     return $SPDownNode
+}
+
+######################################################################################################################
+
+#'Get Config Backups
+
+######################################################################################################################
+
+
+Function Get-configBackup($cluster){
+
+     $configBackup_names = @()
+     $date_now = Get-Date -uformat "%y-%m-%d"
+     $cluster_name = Cluster-Name $cluster
+     $cfg_backup_name = "$cluster_name.daily.20$date_now.*.7z"
+   Try{
+        Process-cluster $cluster
+
+        $configBackups = Get-NcConfigBackup  -Name $cfg_backup_name -ErrorAction Stop
+
+        Write-Log -Info -Message "Enumerated Config Backup on cluster ""$cluster"""
+
+     }Catch{
+
+        Write-Log -Error -Message "Failed enumerating Config Backup on cluster ""$cluster"""
+        $node = "NA"
+
+        [Int]$script:errorCount++
+
+
+     }
+     $cfgBkpCount  = $configBackups.count
+     foreach($configBackup in $configBackups){
+
+            $configBackup_names += $configBackup.BackupName
+
+    }
+    $configBackup_names = $configBackup_names | Get-Unique
+    return $cfgBkpCount, $configBackup_names
+}
+
+######################################################################################################################
+
+#'Enumerate Cluster tables1
+
+######################################################################################################################
+
+ Function Ontap-Data1($cluster){
+    
+    $noErrorMsg = "There are no entries matching your query."
+    $cluster_name = Cluster-Name $cluster
+    $cluster_version = Get-Clusterimage $cluster
+    $subsystems = Get-EnvStatus $cluster
+    $subsystems = $subsystems.trim()
+    $failed_subsystem_table = ""
+    if ($subsystems.Contains($noErrorMsg)){
+         $subsystem_status = "<TD bgcolor=#33FFBB> Subsystem: Ok </TD>"
+    }else{
+        foreach($subsystem in $subsystems){
+                if ($subsystem.contains("--") -or $subsystem.contains("entries were displayed")){
+                }else{
+                    $failed_subsystem_table += "<TR><TD bgcolor=#FA8074s>$subsystem</TD></TR>"
+                }
+            }
+        $subsystem_status = @"
+    <TD bgcolor=#FA8074>
+        <button type="button" class="collapsible"> Subsystem: Fault </button>
+        <div class="errorContent">
+        <table>
+        $failed_subsystem_table
+        </table>
+        </div>
+    </TD>
+"@
+    }
+   $chassies = Get-ChassisStatus $cluster
+   $chassies = $chassies.trim()
+   if ($chassies.Contains($noErrorMsg)){
+        $chassis_status = "<TD bgcolor=#33FFBB> Chassis: Ok </TD>"
+    }else{
+        foreach($chassis in $chassies){
+                if ($chassis.contains("--") -or $chassis.contains("entries were displayed")){
+                }else{
+                    $failed_chassis_table += "<TR><TD bgcolor=#FA8074s>$chassis</TD></TR>"
+                }
+        }
+        $chassis_status = @"
+    <TD bgcolor=#FA8074>
+        <button type="button" class="collapsible"> Subsystem: Fault </button>
+        <div class="errorContent">
+        <table>
+        $failed_chassis_table
+        </table>
+        </div>
+    </TD>
+"@
+   }
+   [Int]$failedDiskCount = (Failed-Disk $cluster).count
+   if ($failedDiskCount -gt 0){
+        $failedDisks = (Failed-Disk $cluster).Name
+        $failedDisk_status = "<TD bgcolor=#FA8074> Failed Disk: $failedDiskCount<BR>$failedDisks</TD>"
+    }else{
+        $failedDisk_status = "<TD bgcolor=#33FFBB>Failed Disk: Ok </TD>"
+        }
+    $hw_status = @"
+    <TD>
+    <table>
+        <TR>
+            $subsystem_status
+        </TR>
+        <TR>
+            $chassis_status
+        </TR>
+        <TR>
+            $failedDisk_status
+        </TR>
+    </table>
+    </TD>
+"@
+    $clusterHealth = Cluster-Health $cluster
+    $clusterHealth = $clusterHealth.trim()
+    if ($clusterHealth.Contains($noErrorMsg)){
+        $cluster_status = "<TD bgcolor=#33FFBB> Ok </TD>"
+    }else{
+        $cluster_status = "<TD bgcolor=#FA8074> Degraded </TD>"
+        }
+    $aggregateOfflineTable = "<TR><TH>Offline Aggregates</TH></TR>"
+    $aggregateHighUtilTable = "<TR><TH>Aggregates > 90% </TH></TR>"
+    $aggregateOffline, $aggregateHighUtil = aggregate-status $cluster
+    [Int]$aggregateOffline_count = $aggregateOffline.count
+    [Int]$aggregateHighUtil_count = $aggregateHighUtil.count
+    if ($aggregateOffline_count -eq 0 -and $aggregateHighUtil_count -eq 0){
+        $aggregate_status =  "<TD bgcolor=#33FFBB> Ok </TD>"
+    }elseif($aggregateOffline_count -eq 0 -and $aggregateHighUtil_count -ne 0){
+        foreach($aggr in $aggregateHighUtil){
+            $aggregateHighUtilTable += "<TR><TD bgcolor=#FA8074>$aggr</TD></TR>"
+        }
+        $aggregate_status = @"
+        <TD bgcolor=#FA8074>
+            <button type="button" class="collapsible"> Aggregate > 90%: $aggregateHighUtil_count </button>
+            <div class="errorContent">
+            <table>
+            $aggregateHighUtilTable
+            </table>
+            </div>
+        </TD>
+"@
+    }elseif($aggregateOffline_count -ne 0 -and $aggregateHighUtil_count -eq 0){
+        foreach($aggr in $aggregateOffline){
+            $aggregateOfflineTable += "<TR><TD bgcolor=#FA8074>$aggr</TD></TR>"
+        }
+        $aggregate_status = @"
+        <TD bgcolor=#FA8074>
+            <button type="button" class="collapsible"> Aggregate Offline: $aggregateOffline_count </button>
+            <div class="errorContent">
+            <table>
+            $aggregateOfflineTable
+            </table>
+            </div>
+        </TD>
+"@
+    }else{
+        foreach($aggr in $aggregateHighUtil){
+            $aggregateHighUtilTable += "<TR><TD bgcolor=#FA8074>$aggr</TD></TR>"
+        }
+        foreach($aggr in $aggregateOffline){
+            $aggregateOfflineTable += "<TR><TD bgcolor=#FA8074>$aggr</TD></TR>"
+        }
+        $aggregate_status = @"
+        <TD bgcolor=#FA8074>
+            <button type="button" class="collapsible"> Aggregate Offline: $aggregateOffline_count :: Aggregate >90%: $aggregateHighUtil_count </button>
+            <div class="errorContent">
+            <table>
+            $aggregateOfflineTable
+            $aggregateHighUtilTable
+            </table>
+            </div>
+        </TD>
+"@           
+    }
+
+    $nodeList, $spareList = Spare-Disk $cluster
+    $spare_status = ""
+    for($i = 0; $i -lt $nodeList.count; $i++){
+        
+        $node = $nodeList[$i]
+        [Int]$spares = $spareList[$i]
+        if ($spares -lt 1){
+            $spare_stat += "<TR><TD bgcolor=#FA8074> $node : $spares </TD></TR>"
+        }else{
+            $spare_stat += "<TR><TD bgcolor=#33FFBB> $node : $spares </TD></TR>"
+        }
+    }
+    $spare_status = @"
+    <TD>
+    <table>
+        <TR>
+            $spare_stat
+        </TR>
+    </table>
+    </TD>
+"@
+    $volumeOffline, $volumeHighUtil = Get-VolumeStatus $cluster
+      $volumeOfflineTable = "<TR><TH>Offline Volumes</TH></TR>"
+    $volumeHighUtilTable = "<TR><TH>Volumes > 90% </TH></TR>"
+    [Int]$volumeOffline_count = $volumeOffline.count
+    [Int]$volumeHighUtil_count = $volumeHighUtil.count
+    if ($volumeOffline_count -eq 0 -and $volumeHighUtil_count -eq 0){
+        $volume_status =  "<TD bgcolor=#33FFBB> Ok </TD>"
+    }elseif($volumeOffline_count -eq 0 -and $volumeHighUtil_count -ne 0){
+        foreach($vol in $volumeHighUtil){
+            $volumeHighUtilTable += "<TR><TD bgcolor=#FA8074>$vol</TD></TR>"
+        }
+        $volume_status = @"
+        <TD bgcolor=#FA8074>
+            <button type="button" class="collapsible"> Volume > 90%: $volumeHighUtil_count </button>
+            <div class="errorContent">
+            <table>
+            $volumeHighUtilTable
+            </table>
+            </div>
+        </TD>
+"@
+    }elseif($volumeOffline_count -ne 0 -and $volumeHighUtil_count -eq 0){
+        foreach($vol in $volumeOffline){
+            $volumeOfflineTable += "<TR><TD bgcolor=#FA8074>$vol</TD></TR>"
+        }
+        $volume_status = @"
+        <TD bgcolor=#FA8074>
+            <button type="button" class="collapsible"> Volume Offline: $volumeOffline_count </button>
+            <div class="errorContent">
+            <table>
+            $volumeOfflineTable
+            </table>
+            </div>
+        </TD>
+"@
+    }else{
+        foreach($vol in $volumeHighUtil){
+            $volumeHighUtilTable += "<TR><TD bgcolor=#FA8074>$vol</TD></TR>"
+        }
+        foreach($vol in $volumeOffline){
+            $volumeOfflineTable += "<TR><TD bgcolor=#FA8074>$vol</TD></TR>"
+        }
+        $volume_status = @"
+        <TD bgcolor=#FA8074>
+            <button type="button" class="collapsible"> Volume Offline: $volumeOffline_count :: Volume >90%: $volumeHighUtil_count </button>
+            <div class="errorContent">
+            <table>
+            $volumeOfflineTable
+            $volumeHighUtilTable
+            </table>
+            </div>
+        </TD>
+"@           
+    }
+    
+    $node_names = (Get-ClusterNodes $cluster).node
+    $portDownlist, $portDown = port-status $cluster
+    $port_count = $portDown.count
+    foreach ($node_name in $node_names){
+        $portDownTable = "<TR><TH>Ports Down</TH></TR>"
+        $portDown_count = 0
+        if ($port_count -gt 0){
+            for ($i=0; $i -lt $port_count; $i++){
+                if ($portDownlist[$i].Contains($node_name)){
+                    
+                    $portDown_count++
+                    $port = $portDown[$i]
+                    $portDownTable += "<TR><TD bgcolor=#FA8074> $port </TD></TR>"
+                }
+            }
+            $port_stat += @"
+            <TR>
+            <TD bgcolor=#FA8074>
+                <button type="button" class="collapsible"> $node_name : $portDown_count Ports Down </button>
+                <div class="errorContent">
+                <table>
+                    $portDownTable
+                </table>
+                </div>
+            </TD>
+            </TR>
+"@      
+        }else{
+            $port_stat += "<TR><TD bgcolor=#33FFBB> $node_name : Ok </TD></TR>"
+    }
+
+    }
+    $port_status = @"
+    <TD>
+    <table>
+        <TR>
+            $port_stat
+        </TR>
+    </table>
+    </TD>
+"@
+    $InterfaceDown = Interface-Status $cluster
+    $interfaceDownCount = $InterfaceDown.count
+    if ($interfaceDownCount -eq 0){
+        $interface_status = "<TD bgcolor=#33FFBB> Ok </TD>"
+    }else{
+        foreach ($interface in $InterfaceDown){
+        $interfaceDownTable += "<TR><TD bgcolor=#FA8074> $interface </TD></TR>"
+        }
+        $interface_status = @"
+            <TD bgcolor=#FA8074>
+                <button type="button" class="collapsible"> $interfaceDownCount Ports Down </button>
+                <div class="errorContent">
+                <table>
+                    $interfaceDownTable
+                </table>
+                </div>
+            </TD>
+"@
+    }
+
+    $snapmirrorUnhealthy, $snapmirrorHighLag = Snapmirror-Status $cluster
+
+    $snapmirrorUnhealthyCount = $snapmirrorUnhealthy.count
+
+    $snapmirrorHighLagCount = $snapmirrorHighLag.count
+
+    $snapmirrorUnhealthyTable = "<TR><TH> Unhealthy Snapmirror </TH></TR>"
+
+    $snapmirrorHighLagTable = "<TR><TH> Snapmirrorlag > 24hr </TH></TR>"
+
+    if ($snapmirrorUnhealthyCount -eq 0 -and $snapmirrorHighLagCount -eq 0){
+        $snapmirror_status = "<TD bgcolor=#33FFBB> Ok </TD>"
+    }elseif($snapmirrorUnhealthyCount -eq 0 -and $snapmirrorHighLagCount -ne 0){
+        foreach($mirror in $snapmirrorHighLag){
+            $snapmirrorHighLagTable += "<TR><TD bgcolor=#FA8074>$mirror</TD></TR>"
+        }
+        $snapmirror_status = @"
+        <TD bgcolor=#FA8074>
+            <button type="button" class="collapsible"> Snapmirrorlag > 24hr: $snapmirrorHighLagCount </button>
+            <div class="errorContent">
+            <table>
+            $snapmirrorHighLagTable
+            </table>
+            </div>
+        </TD>
+"@
+    }elseif($snapmirrorUnhealthyCount -ne 0 -and $snapmirrorHighLagCount -eq 0){
+        foreach($mirror in $snapmirrorUnhealthy){
+            $snapmirrorUnhealthyTable += "<TR><TD bgcolor=#FA8074>$mirror</TD></TR>"
+        }
+        $snapmirror_status = @"
+        <TD bgcolor=#FA8074>
+            <button type="button" class="collapsible"> Unhealthy Snapmirror: $snapmirrorUnhealthyCount </button>
+            <div class="errorContent">
+            <table>
+            $snapmirrorUnhealthyTable
+            </table>
+            </div>
+        </TD>
+"@
+    }else{
+        foreach($mirror in $snapmirrorHighLag){
+            $snapmirrorHighLagTable += "<TR><TD bgcolor=#FA8074>$mirror</TD></TR>"
+        }
+        foreach($mirror in $snapmirrorUnhealthy){
+            $snapmirrorUnhealthyTable += "<TR><TD bgcolor=#FA8074>$mirror</TD></TR>"
+        }
+        $snapmirror_status = @"
+        <TD bgcolor=#FA8074>
+            <button type="button" class="collapsible"> Unhealthy Snapmirror: $snapmirrorUnhealthyCount :: Snapmirrorlag > 24hr: $snapmirrorHighLagCount </button>
+            <div class="errorContent">
+            <table>
+            $snapmirrorUnhealthyTable
+            $snapmirrorHighLagTable
+            </table>
+            </div>
+        </TD>
+"@           
+    }
+
+    $cluster_report_data = @"
+        <TR>
+            <TD>$cluster_name</TD>
+            <TD>$cluster_version</TD>
+            $hw_status
+            $cluster_status
+            $aggregate_status
+            $spare_status
+            $volume_status
+            $port_status
+            $interface_status
+            $snapmirror_status
+        </TR>
+"@
+    return $cluster_report_data
  }
 
- 
-######################################################################################################################
-
-#'Main Logic
 
 ######################################################################################################################
 
-Module
+#'Enumerate Cluster table2 data
 
-var-Init
+######################################################################################################################
 
-Table-Cr
+Function Ontap-Data2($cluster){
+    
+    $noErrorMsg = "There are no entries matching your query."
+    $cluster_name = Cluster-Name $cluster
+    $ifgrps = Get-ifgrpStatus $cluster
+    $ifgrps = $ifgrps.trim()
+    $failed_ifgrps_table = ""
+    if ($ifgrps.Contains($noErrorMsg)){
+         $ifgrps_status = "<TD bgcolor=#33FFBB> Ok </TD>"
+    }else{
+        foreach($ifgrp in $ifgrps){
+                if ($ifgrp.contains("--") -or $ifgrp.contains("entries were displayed")){
+                }else{
+                    $failed_ifgrps_table += "<TR><TD bgcolor=#FA8074>$ifgrp</TD></TR>"
+                }
+            }
+        $ifgrps_status = @"
+    <TD bgcolor=#FA8074>
+        <button type="button" class="collapsible"> IFGRP: Degraded </button>
+        <div class="errorContent">
+        <table>
+        $failed_ifgrps_table
+        </table>
+        </div>
+    </TD>
+"@
+    }
+    $vserverStates, $vserverNames = Get-vserver $cluster
+    $vserverStatesCount = $vserverStates.count
+    if ($vserverStatesCount -gt 0){
+        for($i = 0;$i -lt $vserverStatesCount; $i++){
+            $vserverName = $vserverNames[$i]
+            $vserverState = $vserverStates[$i]
+            $vserver_stat += "<TR><TD bgcolor=#FA8074>$vserverName : $vserverState </TD></TR>"
+        }
+    $vserver_status = @"
+    <TD>
+    <table>
+    $vserver_stat
+    </table>
+    </TD>
+"@
+    }else{
+        $vserver_status = "<TD bgcolor=#33FFBB> Ok </TD>"
+    }
+    $LUNOffline, $LUNHighUtil = LUNs-Status $cluster
+      $LUNOfflineTable = "<TR><TH>Offline LUNs</TH></TR>"
+    $LUNHighUtilTable = "<TR><TH>LUNs > 90% </TH></TR>"
+    [Int]$LUNOffline_count = $LUNOffline.count
+    [Int]$LUNHighUtil_count = $LUNHighUtil.count
+    if ($LUNOffline_count -eq 0 -and $LUNHighUtil_count -eq 0){
+        $LUN_status =  "<TD bgcolor=#33FFBB> Ok </TD>"
+    }elseif($LUNOffline_count -eq 0 -and $LUNHighUtil_count -ne 0){
+        foreach($lun in $LUNHighUtil){
+            $LUNHighUtilTable += "<TR><TD bgcolor=#FA8074>$lun</TD></TR>"
+        }
+        $LUN_status = @"
+        <TD bgcolor=#FA8074>
+            <button type="button" class="collapsible"> Volume > 90%: $LUNHighUtil_count </button>
+            <div class="errorContent">
+            <table>
+            $LUNHighUtilTable
+            </table>
+            </div>
+        </TD>
+"@
+    }elseif($LUNOffline_count -ne 0 -and $LUNHighUtil_count -eq 0){
+        foreach($lun in $LUNOffline){
+            $LUNOfflineTable += "<TR><TD bgcolor=#FA8074>$lun</TD></TR>"
+        }
+        $LUN_status = @"
+        <TD bgcolor=#FA8074>
+            <button type="button" class="collapsible"> Volume Offline: $LUNOffline_count </button>
+            <div class="errorContent">
+            <table>
+            $LUNOfflineTable
+            </table>
+            </div>
+        </TD>
+"@
+    }else{
+        foreach($lun in $LUNHighUtil){
+            $LUNHighUtilTable += "<TR><TD bgcolor=#FA8074>$lun</TD></TR>"
+        }
+        foreach($lun in $LUNOffline){
+            $LUNOfflineTable += "<TR><TD bgcolor=#FA8074>$lun</TD></TR>"
+        }
+        $LUN_status = @"
+        <TD bgcolor=#FA8074>
+            <button type="button" class="collapsible"> Volume Offline: $LUNOffline_count :: Volume >90%: $LUNHighUtil_count </button>
+            <div class="errorContent">
+            <table>
+            $LUNOfflineTable
+            $LUNHighUtilTable
+            </table>
+            </div>
+        </TD>
+"@           
+    }
 
-Read-Cluster($fileSpec1)
+    $acps = Get-acpStatus $cluster
+    $acps = $acps.trim()
+    $failed_acps_table = ""
+    if ($acps.Contains($noErrorMsg)){
+         $acps_status = "<TD bgcolor=#33FFBB> Ok </TD>"
+    }else{
+        foreach($acp in $acps){
+                if ($acp.contains("--") -or $acp.contains("entries were displayed")){
+                }else{
+                    $failed_acps_table += "<TR><TD bgcolor=#FA8074>$acp</TD></TR>"
+                }
+            }
+        $acps_status = @"
+    <TD bgcolor=#FA8074>
+        <button type="button" class="collapsible"> ACP: Degraded </button>
+        <div class="errorContent">
+        <table>
+        $failed_acps_table
+        </table>
+        </div>
+    </TD>
+"@
+    }
 
-Process-clusters
+    $SPDownNode = Get-SPStatus $cluster
+    $SPDownCount = $SPDownNode.count
+    $SPDownNodeTable = "<TR><TH>Offline SP Node</TH></TR>"
+    if($SPDownNode -ne $null){
+        foreach($SPDN in $SPDownNode){
+            $SPDownNodeTable += "<TR><TD bgcolor=#FA8074>$SPDN</TD></TR>"
+        }
+        $sp_status = @"
+    <TD bgcolor=#FA8074>
+        <button type="button" class="collapsible"> $SPDownCount SP Down </button>
+        <div class="errorContent">
+        <table>
+        $SPDownNodeTable
+        </table>
+        </div>
+    </TD>
+"@
+    
+    }else{
+        $sp_status = "<TD bgcolor=#33FFBB> Ok </TD>"
+    }
+    
+    $cfgBkpCount, $configBackup_names = Get-configBackup $cluster
+    $node_count = (Get-ClusterNodes $cluster).count
+    if($node_count -eq $cfgBkpCount){
+        $cfg_backup_status = "<TD bgcolor=#33FFBB> Last backup: $configBackup_names </TD>"
+    }else{
+        $cfg_backup_status = "<TD bgcolor=#FA8074> Backup count Mis-Match </TD>"
+    }
 
-Mail-Header
+    $cluster_report_data = @"
+        <TR>
+            <TD>$cluster_name</TD>
+            $ifgrps_status
+            $vserver_status
+            $LUN_status
+            $acps_status
+            $sp_status
+            $autosupport_status
+            $cfg_backup_status
+        </TR>
+"@
+    return $cluster_report_data
+}
 
-Mail-Body
+Function Cluster-ReportTable($clusters){
+    
+    foreach($cluster in $clusters){
 
-var-Init
+        [String]$ontap_data_1_dt += Ontap-Data1 $cluster
 
-Table-Cr
+        [String]$ontap_data_2_dt += Ontap-Data2 $cluster
+    }   
+    $cluster_report_body = @"
+    <div>
+    <h3 style='color : #464A46; font-size : 21px' align="" left ""> Ontap  - Part1 </h3>
+    </caption>
+        <Table>
+            <TR>
+                <TH><B> Cluster Name </B></TH>
+                <TH><B> ONTAP version </B></TH>
+                <TH><B> Hardware Status </B></TH>
+                <TH><B> Cluster Status </B></TH>
+                <TH><B> Aggr status </B></TH>
+                <TH><B> Spare Disk Status </B></TH>
+                <TH><B> Vol Status </B></TH>
+                <TH><B> Port Status </B></TH>
+                <TH><B> LIF status </B></TH>
+                <TH><B> Snapmirror Status </B></TH>
+            </TR>
+            $ontap_data_1_dt
+        </Table>
+    <h3 style='color : #464A46; font-size : 21px' align="" left ""> Ontap  - Part2 </h3>
+    </caption>
+        <Table>
+            <TR>
+                <TH><B> Cluster Name </B></TH>
+                <TH><B> Ifgrp Status </B></TH>
+                <TH><B> Vserver Status </B></TH>
+                <TH><B> LUN Status </B></TH>
+                <TH><B> ACP Status </B></TH>
+                <TH><B> SP Status </B></TH>
+                <TH><B> Cluster Config Bkp </B></TH>
+            </TR>
+            $ontap_data_2_dt
+        </Table>
+    </div>
+"@
+    return $cluster_report_body
+}
 
-Read-Cluster($fileSpec2)
+$current_time = Get-IsoDateTime
 
-Process-clusters
+$current_date = Get-IsoDate
+$htmlOut = HTML-Body $current_time $current_date
 
-Mail-Header
+Set-Content -Path $outfile -Value $htmlOut
 
-Mail-Body
+#$cluster = "192.168.0.101"
+#Get-configBackup($cluster)
+#Interface-Status $cluster
+#$nodeList, $spareList = (Snapmirror-Status $cluster)
+#echo $nodeList, $spareList
+#if ($fd -eq $null){
+#    echo 'True'
+#}
+#else{
+#    echo 'False'
+#}
 
-Mail-Tail
-
-Delete-Files($fileSpec_out)
-
-Create-File($fileSpec_out)
-#mail-Mod
