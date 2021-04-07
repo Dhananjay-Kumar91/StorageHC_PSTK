@@ -1694,7 +1694,11 @@ Function Ontap-Data2($cluster){
         for($i = 0;$i -lt $vserverStatesCount; $i++){
             $vserverName = $vserverNames[$i]
             $vserverState = $vserverStates[$i]
-            $vserver_stat += "<TR><TD bgcolor=#FA8074>$vserverName : $vserverState </TD></TR>"
+             if ($vserverState -ne $null){
+                 $vserver_stat += "<TR><TD bgcolor=#FA8074>$vserverName State: $vserverState </TD></TR>"
+             }else{
+                 $vserver_stat += "<TR><TD bgcolor=#FA8074>$vserverName State: NA </TD></TR>"            } 
+
         }
     $vserver_status = @"
     <TD>
