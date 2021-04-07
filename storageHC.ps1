@@ -84,7 +84,7 @@ Function Get-IsoTime{
 
 $ErrorActionPreference  = "Stop"
 
-[String]$outfile = "C:\NA-Scripts\storage_report_output\StorageHC.htm"
+[String]$outfile = "C:\NA-Scripts\storage_report_output\"+(Get-IsoDate)+"_StorageHC.htm"
 
 #$outfile = "C:\NA-Scripts\storage_report_output\test.html"
 
@@ -1880,6 +1880,104 @@ Function Cluster-ReportTable($clusters){
     return $cluster_report_body
 }
 
+
+######################################################################################################################
+
+ 
+
+#'Send Email
+
+ 
+
+######################################################################################################################
+
+ 
+
+Function mail-Mod($outfile){
+
+ 
+
+$date=get-date
+
+ 
+
+$day=$date.Day
+
+ 
+
+$month=$date.Month
+
+ 
+
+$year=$date.Year
+
+ 
+
+$From = "Daily-health-check@motability.netapp.com"
+
+ 
+
+$To = "ng-CenitexMS@netapp.com"
+
+ 
+
+$Attachment = $outfile
+
+ 
+
+$Subject = "Motability Daily Health Check ($day/$month/$year)"
+
+ 
+
+$msgBody = $htmlOut
+
+ 
+
+$SMTPServer = "10.61.94.20"
+
+ 
+
+Send-MailMessage -From $From -to $To -Subject $Subject -Body $msgBody -BodyAsHtml -SmtpServer $SMTPServer -Attachments $Attachment
+
+ 
+
+}
+
+ 
+
+######################################################################################################################
+
+ 
+
+#'Delete reports more than 30 Days
+
+ 
+
+######################################################################################################################
+
+ 
+
+Function delete-OldFiles(){
+
+   
+
+   # Delete all Files in C:\temp older than 30 day(s)
+
+   $Path = "C:\NA-Scripts\storage_report_output"
+
+   $Daysback = "-30"
+
+
+   $CurrentDate = Get-Date
+
+   $DatetoDelete = $CurrentDate.AddDays($Daysback)
+
+   Get-ChildItem $Path | Where-Object { $_.LastWriteTime -lt $DatetoDelete } | Remove-Item
+
+}
+
+
+
 $current_time = Get-IsoDateTime
 
 $current_date = Get-IsoDate
@@ -1887,15 +1985,6 @@ $htmlOut = HTML-Body $current_time $current_date
 
 Set-Content -Path $outfile -Value $htmlOut
 
-#$cluster = "192.168.0.101"
-#Get-configBackup($cluster)
-#Interface-Status $cluster
-#$nodeList, $spareList = (Snapmirror-Status $cluster)
-#echo $nodeList, $spareList
-#if ($fd -eq $null){
-#    echo 'True'
-#}
-#else{
-#    echo 'False'
-#}
+delete-OldFiles
 
+#######################################################################################################################
