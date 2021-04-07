@@ -1,6 +1,13 @@
 ﻿whoami
 
+ <#
  
+ This script is an intelectual property of GSSC. It is intended to be used to generate Health-Check report for Ontap systems.
+ For modification and tuning please reachout to your respective leads.
+ Usage: 
+ > .\storageHC.ps1
+ 
+ #>
 
 ######################################################################################################################
 
