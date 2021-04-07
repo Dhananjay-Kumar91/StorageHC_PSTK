@@ -1558,6 +1558,7 @@ Function Get-configBackup($cluster){
 "@
     $InterfaceDown = Interface-Status $cluster
     $interfaceDownCount = $InterfaceDown.count
+    $interfaceDownTable = "<TR><TH>LIFs Down</TH></TR>"
     if ($interfaceDownCount -eq 0){
         $interface_status = "<TD bgcolor=#33FFBB> Ok </TD>"
     }else{
@@ -1566,7 +1567,7 @@ Function Get-configBackup($cluster){
         }
         $interface_status = @"
             <TD bgcolor=#FA8074>
-                <button type="button" class="collapsible"> $interfaceDownCount Ports Down </button>
+                <button type="button" class="collapsible"> $interfaceDownCount LIFs Down </button>
                 <div class="errorContent">
                 <table>
                     $interfaceDownTable
