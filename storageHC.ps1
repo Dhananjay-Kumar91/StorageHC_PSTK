@@ -91,7 +91,7 @@ Function Get-IsoTime{
 
 $ErrorActionPreference  = "Stop"
 
-[String]$outfile = "C:\NA-Scripts\storage_report_output\"+(Get-IsoDate)+"_StorageHC.htm"
+[String]$outfile = "C:\NA-Scripts\storage_report_output\"+(Get-IsoDate)+"_StorageHC.html"
 
 #$outfile = "C:\NA-Scripts\storage_report_output\test.html"
 
@@ -1924,7 +1924,7 @@ $From = "Daily-health-check@motability.netapp.com"
 
  
 
-$To = "ng-CenitexMS@netapp.com"
+$To = "dhananjay.kumar@netapp.com"
 
  
 
@@ -1940,7 +1940,7 @@ $msgBody = $htmlOut
 
  
 
-$SMTPServer = "10.61.94.20"
+$SMTPServer = "<SMTP ServerIP>"
 
  
 
@@ -1993,5 +1993,7 @@ $htmlOut = HTML-Body $current_time $current_date
 Set-Content -Path $outfile -Value $htmlOut
 
 delete-OldFiles
+
+mail-Mod $outfile
 
 #######################################################################################################################
