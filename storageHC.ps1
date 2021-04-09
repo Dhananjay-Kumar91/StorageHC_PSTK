@@ -1730,7 +1730,7 @@ Function Ontap-Data2($cluster){
         }
         $LUN_status = @"
         <TD bgcolor=#FA8074>
-            <button type="button" class="collapsible"> Volume > 90%: $LUNHighUtil_count </button>
+            <button type="button" class="collapsible"> LUNs > 90%: $LUNHighUtil_count </button>
             <div class="errorContent">
             <table>
             $LUNHighUtilTable
@@ -1744,7 +1744,7 @@ Function Ontap-Data2($cluster){
         }
         $LUN_status = @"
         <TD bgcolor=#FA8074>
-            <button type="button" class="collapsible"> Volume Offline: $LUNOffline_count </button>
+            <button type="button" class="collapsible"> LUNs Offline: $LUNOffline_count </button>
             <div class="errorContent">
             <table>
             $LUNOfflineTable
@@ -1761,7 +1761,7 @@ Function Ontap-Data2($cluster){
         }
         $LUN_status = @"
         <TD bgcolor=#FA8074>
-            <button type="button" class="collapsible"> Volume Offline: $LUNOffline_count :: Volume >90%: $LUNHighUtil_count </button>
+            <button type="button" class="collapsible"> LUNs Offline: $LUNOffline_count :: LUNs >90%: $LUNHighUtil_count </button>
             <div class="errorContent">
             <table>
             $LUNOfflineTable
