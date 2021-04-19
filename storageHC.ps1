@@ -1900,7 +1900,7 @@ Function Cluster-ReportTable($clusters){
 
  
 
-Function mail-Mod($outfile){
+Function mail-Mod($outfile, $htmlOut){
 
  
 
@@ -1994,6 +1994,6 @@ Set-Content -Path $outfile -Value $htmlOut
 
 delete-OldFiles
 
-mail-Mod $outfile
+mail-Mod $outfile $htmlOut
 
 #######################################################################################################################
