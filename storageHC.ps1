@@ -1,8 +1,6 @@
 whoami
 <#
-
-is script is an intelectual property of GSSC. It is intended to be used to generate Heal
--Check report for Ontap systems.
+This script is an intelectual property of GSSC. It is intended to be used to generate Health-Check report for Ontap systems.
 For modification and tuning please reachout to your respective leads.
 Usage:
 > .\storageHC.ps1
@@ -41,30 +39,21 @@ Function Get-IsoTime {
 #'Initialization Section. Define Global Variables.
 ######################################################################################################################
 
-[String]$script:scriptPa
-= Split-Pa
-($MyInvocation.MyCommand.Pa
-)
+[String]$script:scriptPath = Split-Path($MyInvocation.MyCommand.Path)
 [String]$script:scriptSpec = $MyInvocation.MyCommand.Definition
 [String]$script:scriptBaseName = (Get-Item $scriptSpec).BaseName
 [String]$script:scriptName = (Get-Item $scriptSpec).Name
-[String]$script:scriptLogPa
-= $($scriptPa
-    + "\" + (Get-IsoDate))
+[String]$script:scriptLogPath = $($scriptPath + "\" + (Get-IsoDate))
 [Int]$script:errorCount = 0
 $ErrorActionPreference = "Stop"
 [String]$outfile = "C:\NA-Scripts\storage_report_output\" + (Get-IsoDate) + "_StorageHC.htm"
 #$outfile = "C:\NA-Scripts\storage_report_output\test.html"
 
 ######################################################################################################################
-#'Ensure 
-at dates are always returned in English
+#'Ensure that dates are always returned in English
 ######################################################################################################################
 
-[System.
-reading.
-read]::Current
-read.CurrentCulture = "en-US"
+[System.Threading.Thread]::CurrentThread.CurrentCulture = "en-US"
 
 ######################################################################################################################
 #'Function to Write-Log
@@ -79,9 +68,7 @@ Function Write-Log {
         [String]$Message
     )
     #'---------------------------------------------------------------------------
-    #'Add an entry to 
-    e log file and disply 
-    e output. Format: [Date], [TYPE], MESSAGE
+    #'Add an entry to the log file and disply the output. Format: [Date],[TYPE],MESSAGE
     #'---------------------------------------------------------------------------
     [String]$lineNumber = $MyInvocation.ScriptLineNumber
     [Bool]$debugLogging = $False;
@@ -110,8 +97,7 @@ Function Write-Log {
             [String]$line = $("`[" + (Get-IsoDateTime) + "`],`[INFO`]," + $Message)
         }
         #'------------------------------------------------------------------------
-        #'Display 
-        e console output.
+        #'Display the console output.
         #'------------------------------------------------------------------------
         If ($Error) {
             If ([String]::IsNullOrEmpty($_.Exception.Message)) {
@@ -131,34 +117,25 @@ Function Write-Log {
             Write-Host $line -Foregroundcolor White
         }
         #'------------------------------------------------------------------------
-        #'Append to 
-        e log. Omit debug loggging if not enabled.
+        #'Append to the log. Omit debug loggging if not enabled.
         #'------------------------------------------------------------------------
         If ($Debug -And $debugLogging) {
-            Add-Content -Pa
-            "$scriptLogPa
-.log" -Value $line -Encoding UTF8 -ErrorAction Stop
+            Add-Content -Path "$scriptLogPath.log" -Value $line -Encoding UTF8 -ErrorAction Stop
         }
         Else {
-            Add-Content -Pa
-            "$scriptLogPa
-.log" -Value $line -Encoding UTF8 -ErrorAction Stop
+            Add-Content -Path "$scriptLogPath.log" -Value $line -Encoding UTF8 -ErrorAction Stop
         }
         If ($Error) {
-            Add-Content -Pa
-            "$scriptLogPa
-.err" -Value $line -Encoding UTF8 -ErrorAction Stop
+            Add-Content -Path "$scriptLogPath.err" -Value $line -Encoding UTF8 -ErrorAction Stop
         }
     }
     Catch {
-        Write-Warning "Could not write entry to output log file ""$scriptLogPa
-.log"". Log Entry ""$Message"""
+        Write-Warning "Could not write entry to output log file ""$scriptLogPath.log"". Log Entry ""$Message"""
     }
 }
 
 ######################################################################################################################
-#'Import 
-e PSTK.
+#'Import the PSTK.
 ######################################################################################################################
 
 Function Modules() {
@@ -176,16 +153,13 @@ Function Modules() {
 }
 
 ######################################################################################################################
-# FUnction to create 
-e HTML Body
+# FUnction to create the HTML Body
 ######################################################################################################################
 Function HTML-Body($current_time, $current_date) {
     $css_fileSpec = "C:\NA-Scripts\css_template.txt"
     $js_fileSpec = "C:\NA-Scripts\js_template.txt"
-    [String]$css = Get-Content -Pa
-    $css_fileSpec
-    [String]$js = Get-Content -Pa
-    $js_fileSpec
+    [String]$css = Get-Content -Path $css_fileSpec
+    [String]$js = Get-Content -Path $js_fileSpec
     $clusters = Read-Cluster
     $storage_body = Cluster-ReportTable $clusters
     $html_body =
@@ -194,23 +168,17 @@ Function HTML-Body($current_time, $current_date) {
   <html lang="en">
   <head>
       <meta charset="UTF-8" />
-      <meta name="viewport" content="wid
-=device-wid
-, initial-scale=1.0" />
-      <title>Storage Heal
--Check</title>
+      <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+      <title>Storage Health-Check</title>
       
   </head>
   $css
   <body>
-      <h1> <strong> Melco-PCaaS - Storage Heal
- Check Report - $current_time </strong></h1>
+      <h1> <strong> Melco-PCaaS - Storage Health Check Report - $current_time </strong></h1>
       <H4 style='color : #4CAF50;padding-left: 30px;'><strong> Date - $current_date </strong></H4>
-      <H5 style='color : #464A46;font-size : 14px;padding-left: 30px;'><strong> Note : 
-is report is for past 24hrs </strong></H5>
+      <H5 style='color : #464A46;font-size : 14px;padding-left: 30px;'><strong> Note : This report is for past 24hrs </strong></H5>
       <H4 style='color : #464A46;font-size : 21px;padding-left: 30px;'>Legend </H4>
-      <table style='wid
-:auto;padding-left: 30px; background-color: #efefef;word-break: keep-all;'>
+      <table style='width:auto;padding-left: 30px; background-color: #efefef;word-break: keep-all;'>
           <tr>
               <td bgcolor=#FA8074>Red</td>
               <td style='background-color: white;'>Critical</td>
@@ -227,8 +195,7 @@ is report is for past 24hrs </strong></H5>
               <li title="Storage">
                   <label for="tab1" role="button">
                           <img
-                              wid
-="17"
+                              width="17"
                               hight="17"
                               src="https://image.flaticon.com/icons/svg/873/873135.svg"/><br /><span> Storage </span></label>
                  </li>
@@ -250,33 +217,22 @@ is report is for past 24hrs </strong></H5>
     return $html_body
 }
 ######################################################################################################################
-#'Read 
-e list of clusters.
+#'Read the list of clusters.
 ######################################################################################################################
 
 Function Read-Cluster() {
     $clusters = @()
-    $Clusters_InputPa
-    = "C:\NA-Scripts\cluster_input.txt"
-    If (-Not(Test-Pa
-            -Pa
-            $Clusters_InputPa
-        )) {
-        Write-Log -Warning -Message "
-e file ""$Clusters_InputPa
-"" does not exist"
+    $Clusters_InputPath = "C:\NA-Scripts\cluster_input.txt"
+    If (-Not(Test-Path -Path $Clusters_InputPath)) {
+        Write-Log -Warning -Message "The file ""$Clusters_InputPath"" does not exist"
         Exit -1
     }
     Try {
-        $cluster_Input = Get-Content -Pa
-        $Clusters_InputPa
-        -ErrorAction Stop
-        Write-Log -Info -Message "Read file ""$Clusters_InputPa
-"""
+        $cluster_Input = Get-Content -Path $Clusters_InputPath -ErrorAction Stop
+        Write-Log -Info -Message "Read file ""$Clusters_InputPath"""
     }
     Catch {
-        Write-Log -Error -Message "Failed reading file ""$Clusters_InputPa
-"""
+        Write-Log -Error -Message "Failed reading file ""$Clusters_InputPath"""
         Exit -1
     }
     foreach ($cluster in $cluster_Input) {
@@ -371,9 +327,7 @@ Function Get-Clusterimage($cluster) {
 #'Get Envirnment Status.
 ######################################################################################################################
 Function Get-EnvStatus($cluster) {
-    $Command = "system heal
- subsystem show -heal
- !ok -fields subsystem"
+    $Command = "system health subsystem show -health !ok -fields subsystem"
     $credential = Get-NcCredential -Controller $cluster -ErrorAction Stop
     $SessionID = New-SSHSession -ComputerName $cluster -Credential $credential.Credential
 
@@ -429,15 +383,11 @@ Function Failed-Disk($cluster) {
     return $failedDisks
 }
 ######################################################################################################################
-#'Enumerate 
-e cluster heal
-.
+#'Enumerate the cluster health.
 ######################################################################################################################
 
-Function Cluster-Heal
-($cluster) {
-    $Command = "cluster show -heal
- false "
+Function Cluster-Health($cluster) {
+    $Command = "cluster show -health false "
     $credential = Get-NcCredential -Controller $cluster -ErrorAction Stop
     $SessionID = New-SSHSession -ComputerName $cluster -Credential $credential.Credential #Connect Over SSH
     Try {
@@ -656,8 +606,7 @@ Function Get-VolumeStatus($cluster) {
 }
 
 ######################################################################################################################
-#'Enumerate E
-ernet Ports.
+#'Enumerate Ethernet Ports.
 ######################################################################################################################
 
 Function port-status($cluster) {
@@ -674,28 +623,18 @@ Function port-status($cluster) {
         [Int]$script:errorCount++
         Break;
     }
-    $portExceptionPa
-    = "C:\NA-Scripts\port_exception.txt"
-    If (-Not(Test-Pa
-            -Pa
-            $portExceptionPa
-        )) {
-        Write-Log -Error -Message "
-e File ""$portExceptionPa
-"" does not exist"
+    $portExceptionPath = "C:\NA-Scripts\port_exception.txt"
+    If (-Not(Test-Path -Path $portExceptionPath)) {
+        Write-Log -Error -Message "The File ""$portExceptionPath"" does not exist"
         [Int]$script:errorCount++
         Break;
     }
     Try {
-        $portException = Get-Content -Pa
-        $portExceptionPa
-        -ErrorAction Stop
-        Write-Log -Info -Message "Read file ""$portExceptionPa
-"""
+        $portException = Get-Content -Path $portExceptionPath -ErrorAction Stop
+        Write-Log -Info -Message "Read file ""$portExceptionPath"""
     }
     Catch {
-        Write-Log -Error -Message "Failed reading file ""$portExceptionPa
-"""
+        Write-Log -Error -Message "Failed reading file ""$portExceptionPath"""
         [Int]$script:errorCount++
         Break;
     }
@@ -734,20 +673,17 @@ Function LUNs-Status($cluster) {
     }
     ForEach ($lun In $luns) {
         if ($lun.state -ne "online") {
-            $lunOffline += $lun.pa
-
+            $lunOffline += $lun.path
         }
     }
     ForEach ($lun In $luns) {
       
         [Int64]$lunSize = $lun.Size
         [Int64]$lunUsed = $lun.SizeUsed
-        [Int64]$lunPercentUsed = [ma
-        ]::round(($lunUsed / $lunSize) * 100, 0)
+        [Int64]$lunPercentUsed = [math]::round(($lunUsed / $lunSize) * 100, 0)
         Write-Log -Info -Message "Percent Used ""$lunPercentUsed"""
         if ($lunPercentUsed -gt 90) {
-            $lunHighUtil += $lun.pa
-
+            $lunHighUtil += $lun.path
         }
     }
     return $lunOffline, $lunHighUtil
@@ -759,8 +695,7 @@ Function LUNs-Status($cluster) {
 
 Function Interface-Status($cluster) {
     $InterfaceDownlist = @()
-    $lifExceptionPa
-    = "C:\NA-Scripts\lif_exception.txt"
+    $lifExceptionPath = "C:\NA-Scripts\lif_exception.txt"
     Try {
         Process-cluster $cluster
         $Interfaces = Get-NcNetInterface -ErrorAction Stop
@@ -771,26 +706,17 @@ Function Interface-Status($cluster) {
         [Int]$script:errorCount++
         Break;
     }
-    If (-Not(Test-Pa
-            -Pa
-            $lifExceptionPa
-        )) {
-        Write-Log -Error -Message "
-e File ""$lifExceptionPa
-"" does not exist"
+    If (-Not(Test-Path -Path $lifExceptionPath)) {
+        Write-Log -Error -Message "The File ""$lifExceptionPath"" does not exist"
         [Int]$script:errorCount++
         Break;
     }
     Try {
-        $lifException = Get-Content -Pa
-        $lifExceptionPa
-        -ErrorAction Stop
-        Write-Log -Info -Message "Read file ""$lifExceptionPa
-"""
+        $lifException = Get-Content -Path $lifExceptionPath -ErrorAction Stop
+        Write-Log -Info -Message "Read file ""$lifExceptionPath"""
     }
     Catch {
-        Write-Log -Error -Message "Failed reading file ""$lifExceptionPa
-"""
+        Write-Log -Error -Message "Failed reading file ""$lifExceptionPath"""
         [Int]$script:errorCount++
         Break;
     }
@@ -814,8 +740,7 @@ e File ""$lifExceptionPa
 Function Snapmirror-Status($cluster) {
 
     $snapmirrorHighLag = @()
-    $snapmirrorUnheal
-    y = @()
+    $snapmirrorUnhealthy = @()
     [int]$LagTimeSeconds = 86400 #24 urs In seconds
     Try {
       
@@ -829,13 +754,11 @@ Function Snapmirror-Status($cluster) {
         Break;
     }
     foreach ($snapmirror in $snapmirrors) {
-        [String]$snapmirrored_state = $snapmirror.isheal
-        y
+        [String]$snapmirrored_state = $snapmirror.ishealthy
       
         if ($snapmirrored_state -ne "True") {
           
-            $snapmirrorUnheal
-            y += $snapmirror.SourceLocation
+            $snapmirrorUnhealthy += $snapmirror.SourceLocation
         }
     }
     foreach ($snapmirror in $snapmirrors) {
@@ -846,12 +769,10 @@ Function Snapmirror-Status($cluster) {
             $snapmirrorHighLag += $snapmirror.SourceLocation
         }
     }
-    return $snapmirrorUnheal
-    y, $snapmirrorHighLag
+    return $snapmirrorUnhealthy, $snapmirrorHighLag
 }
 ######################################################################################################################
-#'Enumerate 
-e Ifgrp Status.
+#'Enumerate the Ifgrp Status.
 ######################################################################################################################
 
 Function Get-ifgrpStatus($cluster) {
@@ -903,8 +824,7 @@ Function Get-vserver($cluster) {
     return $vserverStates, $vserverNames
 }
 ######################################################################################################################
-#'Enumerate 
-e Ifgrp Status.
+#'Enumerate the Ifgrp Status.
 ######################################################################################################################
 
 Function Get-acpStatus($cluster) {
@@ -989,8 +909,7 @@ Function Get-configBackup($cluster) {
 ######################################################################################################################
 Function Ontap-Data1($cluster) {
   
-    $noErrorMsg = "
-ere are no entries matching your query."
+    $noErrorMsg = "There are no entries matching your query."
     $cluster_name = Cluster-Name $cluster
     $cluster_version = Get-Clusterimage $cluster
     $subsystems = Get-EnvStatus $cluster
@@ -1065,25 +984,16 @@ ere are no entries matching your query."
   </table>
   </TD>
 "@
-    $clusterHeal
-    = Cluster-Heal
-    $cluster
-    $clusterHeal
-    = $clusterHeal
-    .trim()
-    if ($clusterHeal
-        .Contains($noErrorMsg)) {
+    $clusterHealth = Cluster-Health $cluster
+    $clusterHealth = $clusterHealth.trim()
+    if ($clusterHealth.Contains($noErrorMsg)) {
         $cluster_status = "<TD bgcolor=#33FFBB> Ok </TD>"
     }
     else {
         $cluster_status = "<TD bgcolor=#FA8074> Degraded </TD>"
     }
-    $aggregateOfflineTable = "<TR><
->Offline Aggregates</
-></TR>"
-    $aggregateHighUtilTable = "<TR><
->Aggregates > 88% </
-></TR>"
+    $aggregateOfflineTable = "<TR><TH>Offline Aggregates</TH></TR>"
+    $aggregateHighUtilTable = "<TR><TH>Aggregates > 88% </TH></TR>"
     $aggregateOffline, $aggregateHighUtil = aggregate-status $cluster
     [Int]$aggregateOffline_count = $aggregateOffline.count
     [Int]$aggregateHighUtil_count = $aggregateHighUtil.count
@@ -1162,12 +1072,8 @@ ere are no entries matching your query."
   </TD>
 "@
     $volumeOffline, $volumeHighUtil, $volume_autogrow_disabled, $volume_snapdelete_enabled = Get-VolumeStatus $cluster
-    $volumeOfflineTable = "<TR><
->Offline Volumes</
-></TR>"
-    $volumeHighUtilTable = "<TR><
->Volumes > 88% </
-></TR>"
+    $volumeOfflineTable = "<TR><TH>Offline Volumes</TH></TR>"
+    $volumeHighUtilTable = "<TR><TH>Volumes > 88% </TH></TR>"
     [Int]$volumeOffline_count = $volumeOffline.count
     [Int]$volumeHighUtil_count = $volumeHighUtil.count
     if ($volumeOffline_count -eq 0 -and $volumeHighUtil_count -eq 0) {
@@ -1224,12 +1130,8 @@ ere are no entries matching your query."
     }
     $volume_autogrow_disabled_count = $volume_autogrow_disabled.count
     $volume_snapdelete_enabled_count = $volume_snapdelete_enabled.count
-    $volume_autogrow_disabled_table = "<TR><
->Autogrow Disabled</
-></TR>"
-    $volume_snapdelete_enabled_table = "<TR><
->Auto Snapdelte Enabled</
-></TR>"
+    $volume_autogrow_disabled_table = "<TR><TH>Autogrow Disabled</TH></TR>"
+    $volume_snapdelete_enabled_table = "<TR><TH>Auto Snapdelte Enabled</TH></TR>"
     if ($volume_autogrow_disabled_count -eq 0) {
         $volume_autogrow_disabled_status = "<TD bgcolor=#33FFBB> Ok </TD>"
     }
@@ -1272,9 +1174,7 @@ ere are no entries matching your query."
     $portDownlist, $portDown = port-status $cluster
     $port_count = $portDown.count
     foreach ($node_name in $node_names) {
-        $portDownTable = "<TR><
->Ports Down</
-></TR>"
+        $portDownTable = "<TR><TH>Ports Down</TH></TR>"
         $portDown_count = 0
         if ($port_count -gt 0) {
             for ($i = 0; $i -lt $port_count; $i++) {
@@ -1313,9 +1213,7 @@ ere are no entries matching your query."
 "@
     $InterfaceDown = Interface-Status $cluster
     $interfaceDownCount = $InterfaceDown.count
-    $interfaceDownTable = "<TR><
->LIFs Down</
-></TR>"
+    $interfaceDownTable = "<TR><TH>LIFs Down</TH></TR>"
     if ($interfaceDownCount -eq 0) {
         $interface_status = "<TD bgcolor=#33FFBB> Ok </TD>"
     }
@@ -1334,26 +1232,15 @@ ere are no entries matching your query."
           </TD>
 "@
     }
-    $snapmirrorUnheal
-    y, $snapmirrorHighLag = Snapmirror-Status $cluster
-    $snapmirrorUnheal
-    yCount = $snapmirrorUnheal
-    y.count
+    $snapmirrorUnhealthy, $snapmirrorHighLag = Snapmirror-Status $cluster
+    $snapmirrorUnhealthyCount = $snapmirrorUnhealthy.count
     $snapmirrorHighLagCount = $snapmirrorHighLag.count
-    $snapmirrorUnheal
-    yTable = "<TR><
-> Unheal
-y Snapmirror </
-></TR>"
-    $snapmirrorHighLagTable = "<TR><
-> Snapmirrorlag > 24hr </
-></TR>"
-    if ($snapmirrorUnheal
-        yCount -eq 0 -and $snapmirrorHighLagCount -eq 0) {
+    $snapmirrorUnhealthyTable = "<TR><TH> Unhealthy Snapmirror </TH></TR>"
+    $snapmirrorHighLagTable = "<TR><TH> Snapmirrorlag > 24hr </TH></TR>"
+    if ($snapmirrorUnhealthyCount -eq 0 -and $snapmirrorHighLagCount -eq 0) {
         $snapmirror_status = "<TD bgcolor=#33FFBB> Ok </TD>"
     }
-    elseif ($snapmirrorUnheal
-        yCount -eq 0 -and $snapmirrorHighLagCount -ne 0) {
+    elseif ($snapmirrorUnhealthyCount -eq 0 -and $snapmirrorHighLagCount -ne 0) {
         foreach ($mirror in $snapmirrorHighLag) {
             $snapmirrorHighLagTable += "<TR><TD bgcolor=#FA8074>$mirror</TD></TR>"
         }
@@ -1368,22 +1255,16 @@ y Snapmirror </
       </TD>
 "@
     }
-    elseif ($snapmirrorUnheal
-        yCount -ne 0 -and $snapmirrorHighLagCount -eq 0) {
-        foreach ($mirror in $snapmirrorUnheal
-            y) {
-            $snapmirrorUnheal
-            yTable += "<TR><TD bgcolor=#FA8074>$mirror</TD></TR>"
+    elseif ($snapmirrorUnhealthyCount -ne 0 -and $snapmirrorHighLagCount -eq 0) {
+        foreach ($mirror in $snapmirrorUnhealthy) {
+            $snapmirrorUnhealthyTable += "<TR><TD bgcolor=#FA8074>$mirror</TD></TR>"
         }
         $snapmirror_status = @"
       <TD bgcolor=#FA8074>
-          <button type="button" class="collapsible"> Unheal
-y Snapmirror: $snapmirrorUnheal
-yCount </button>
+          <button type="button" class="collapsible"> Unhealthy Snapmirror: $snapmirrorUnhealthyCount </button>
           <div class="errorContent">
           <table>
-          $snapmirrorUnheal
-yTable
+          $snapmirrorUnhealthyTable
           </table>
           </div>
       </TD>
@@ -1393,20 +1274,15 @@ yTable
         foreach ($mirror in $snapmirrorHighLag) {
             $snapmirrorHighLagTable += "<TR><TD bgcolor=#FA8074>$mirror</TD></TR>"
         }
-        foreach ($mirror in $snapmirrorUnheal
-            y) {
-            $snapmirrorUnheal
-            yTable += "<TR><TD bgcolor=#FA8074>$mirror</TD></TR>"
+        foreach ($mirror in $snapmirrorUnhealthy) {
+            $snapmirrorUnhealthyTable += "<TR><TD bgcolor=#FA8074>$mirror</TD></TR>"
         }
         $snapmirror_status = @"
       <TD bgcolor=#FA8074>
-          <button type="button" class="collapsible"> Unheal
-y Snapmirror: $snapmirrorUnheal
-yCount :: Snapmirrorlag > 24hr: $snapmirrorHighLagCount </button>
+          <button type="button" class="collapsible"> Unhealthy Snapmirror: $snapmirrorUnhealthyCount :: Snapmirrorlag > 24hr: $snapmirrorHighLagCount </button>
           <div class="errorContent">
           <table>
-          $snapmirrorUnheal
-yTable
+          $snapmirrorUnhealthyTable
           $snapmirrorHighLagTable
           </table>
           </div>
@@ -1436,8 +1312,7 @@ yTable
 ######################################################################################################################
 Function Ontap-Data2($cluster) {
   
-    $noErrorMsg = "
-ere are no entries matching your query."
+    $noErrorMsg = "There are no entries matching your query."
     $cluster_name = Cluster-Name $cluster
     $ifgrps = Get-ifgrpStatus $cluster
     $ifgrps = $ifgrps.trim()
@@ -1489,12 +1364,8 @@ ere are no entries matching your query."
         $vserver_status = "<TD bgcolor=#33FFBB> Ok </TD>"
     }
     $LUNOffline, $LUNHighUtil = LUNs-Status $cluster
-    $LUNOfflineTable = "<TR><
->Offline LUNs</
-></TR>"
-    $LUNHighUtilTable = "<TR><
->LUNs > 90% </
-></TR>"
+    $LUNOfflineTable = "<TR><TH>Offline LUNs</TH></TR>"
+    $LUNHighUtilTable = "<TR><TH>LUNs > 90% </TH></TR>"
     [Int]$LUNOffline_count = $LUNOffline.count
     [Int]$LUNHighUtil_count = $LUNHighUtil.count
     if ($LUNOffline_count -eq 0 -and $LUNHighUtil_count -eq 0) {
@@ -1576,9 +1447,7 @@ ere are no entries matching your query."
     }
     $SPDownNode = Get-SPStatus $cluster
     $SPDownCount = $SPDownNode.count
-    $SPDownNodeTable = "<TR><
->Offline SP Node</
-></TR>"
+    $SPDownNodeTable = "<TR><TH>Offline SP Node</TH></TR>"
 
     if ($SPDownNode -ne $null) {
         if ($SPDownNode -notcontains "NA") {
@@ -1638,39 +1507,17 @@ Function Cluster-ReportTable($clusters) {
   </caption>
       <Table>
           <TR>
-              <
-><B> Cluster Name </B></
->
-              <
-><B> ONTAP version </B></
->
-              <
-><B> Hardware Status </B></
->
-              <
-><B> Cluster Status </B></
->
-              <
-><B> Aggr status </B></
->
-              <
-><B> Spare Disk Status </B></
->
-             <
-><B> Vol Status </B></
->
-              <
-><B> Vol AutoGrow Status </B></
->
-              <
-><B> Port Status </B></
->
-              <
-><B> LIF status </B></
->
-              <
-><B> Snapmirror Status </B></
->
+              <TH><B> Cluster Name </B></TH>
+              <TH><B> ONTAP version </B></TH>
+              <TH><B> Hardware Status </B></TH>
+              <TH><B> Cluster Status </B></TH>
+              <TH><B> Aggr status </B></TH>
+              <TH><B> Spare Disk Status </B></TH>
+             <TH><B> Vol Status </B></TH>
+              <TH><B> Vol AutoGrow Status </B></TH>
+              <TH><B> Port Status </B></TH>
+              <TH><B> LIF status </B></TH>
+              <TH><B> Snapmirror Status </B></TH>
           </TR>
           $ontap_data_1_dt
       </Table>
@@ -1678,27 +1525,13 @@ Function Cluster-ReportTable($clusters) {
   </caption>
       <Table>
           <TR>
-              <
-><B> Cluster Name </B></
->
-              <
-><B> Ifgrp Status </B></
->
-              <
-><B> Vserver Status </B></
->
-              <
-><B> LUN Status </B></
->
-              <
-><B> ACP Status </B></
->
-              <
-><B> SP Status </B></
->
-              <
-><B> Cluster Config Bkp </B></
->
+              <TH><B> Cluster Name </B></TH>
+              <TH><B> Ifgrp Status </B></TH>
+              <TH><B> Vserver Status </B></TH>
+              <TH><B> LUN Status </B></TH>
+              <TH><B> ACP Status </B></TH>
+              <TH><B> SP Status </B></TH>
+              <TH><B> Cluster Config Bkp </B></TH>
           </TR>
           $ontap_data_2_dt
       </Table>
@@ -1719,22 +1552,17 @@ Function mail-Mod($outfile, $htmlOut) {
 
     $day = $date.Day
 
-    $mon
-    = $date.Mon
-
+    $month = $date.Month
 
     $year = $date.Year
 
-    $From = "dailyheal
-check@melco-resorts.com"
+    $From = "dailyhealthcheck@melco-resorts.com"
 
     $To = "pcaas@boardware.com"
 
     $Attachment = $outfile
 
-    $Subject = "Melco-PCaaS ONTAP Daily Heal
- Check ($day/$mon
-/$year)"
+    $Subject = "Melco-PCaaS ONTAP Daily Health Check ($day/$month/$year)"
 
     $msgBody = $htmlOut
 
@@ -1746,30 +1574,25 @@ check@melco-resorts.com"
 
 ######################################################################################################################
 
-#'Delete reports more 
-an 30 Days
+#'Delete reports more than 30 Days
 
 ######################################################################################################################
 
 Function delete-OldFiles() {
 
-    # Delete all Files in C:\temp older 
-    an 30 day(s)
-    $Pa
-    = "C:\NA-Scripts\storage_report_output"
+    # Delete all Files in C:\temp older than 30 day(s)
+    $Path = "C:\NA-Scripts\storage_report_output"
     $Daysback = "-30"
 
     $CurrentDate = Get-Date
     $DatetoDelete = $CurrentDate.AddDays($Daysback)
-    Get-ChildItem $Pa
-    | Where-Object { $_.LastWriteTime -lt $DatetoDelete } | Remove-Item
+    Get-ChildItem $Path | Where-Object { $_.LastWriteTime -lt $DatetoDelete } | Remove-Item
 }
 
 $current_time = Get-IsoDateTime
 $current_date = Get-IsoDate
 $htmlOut = HTML-Body $current_time $current_date
-Set-Content -Pa
-$outfile -Value $htmlOut
+Set-Content -Path $outfile -Value $htmlOut
 delete-OldFiles
 mail-Mod $outfile $htmlOut
 #######################################################################################################################
