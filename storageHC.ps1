@@ -560,6 +560,7 @@ Function aggregate-status($cluster) {
     }
     return $aggregateOffline, $aggregateHighUtil
 }
+
 ######################################################################################################################
 #'Enumerate Volumes.
 ######################################################################################################################
@@ -568,7 +569,7 @@ Function Get-VolumeStatus($cluster) {
     $volumeOffline = @()
     $volumeHighUtil = @()
     $volume_autogrow_disabled = @()
-    $volume_snapdelete_enabled = @()
+    $volume_quotaHigh = @()
     Try {
      
         Process-cluster $cluster
@@ -582,27 +583,38 @@ Function Get-VolumeStatus($cluster) {
     }
     $LUNVolumes = (Get-NcLun).Volume
     foreach ($volume in $Volumes) {
-        If ($Volume.state -ne "online") {
+        If ($Volume.state -ne "online" -and !($volume.Vserver.Contains("-mc"))-and !($Volume.Name.Contains("MDV"))) {
          
             $volumeOffline += $Volume.name
         }
-        [Int]$percent_used = $Volume.used
-        [String]$volume_type = $volume.VolumeIdAttributes.Type
-        If ( $percent_used -gt 88 -And !($Volume.Name.Contains("vol0")) -And !($Volume.Name.Contains("root")) -and $volume_type -notcontains "dp") {
-            $volumeHighUtil += $Volume.name
-        }
-        [String]$vol_autogrow_status = $Volume.VolumeAutosizeAttributes.IsEnabled
-        If ($vol_autogrow_status -eq "False" -And !($Volume.Name.Contains("vol0")) -And !($Volume.Name.Contains("root")) -and $volume_type -notcontains "dp") {
-            $volume_autogrow_disabled += $Volume.Name
-        }
-        [String]$vol_snap_delete_status = $Volume.VolumeSnapshotAutodeleteAttributes.IsAutodeleteEnabled
-        If ($vol_snap_delete_status -eq "True" -And !($Volume.Name.Contains("vol0")) -And !($Volume.Name.Contains("root")) -and $volume_type -notcontains "dp") {
-            $volume_snapdelete_enabled += $Volume.Name
+        if (($volume.VolumeSecurityAttributes.Style) -eq 'unix' -And !($Volume.Name.Contains("vol0")) -And !($Volume.Name.Contains("root")) -and !($volume.Vserver.Contains("-mc"))){
+            [Int]$percent_used = $Volume.used
+            [String]$volume_type = $volume.VolumeIdAttributes.Type
+            If ( $percent_used -gt 80 -And !($Volume.Name.Contains("vol0")) -And !($Volume.Name.Contains("root")) -and $volume_type -notcontains "dp" -and !($Volume.Name.Contains("MDV"))  ) {
+                $volumeHighUtil += $Volume.name
+            }
+
+        }ElseIf (($volume.VolumeSecurityAttributes.Style) -eq 'ntfs' -And !($Volume.Name.Contains("vol0")) -And !($Volume.Name.Contains("root")) -and !($volume.Vserver.Contains("-mc"))){
+            [Int64]$quota_size = (Get-NcQuota -Volume $Volume).DiskLimit
+            [Int64]$vol_used = $Volume.used
+            [Int64]$volPercentUsed = [math]::round(($vol_used / $quota_size) * 100, 0)
+            If ( $volPercentUsed -gt 80 -And !($Volume.Name.Contains("vol0")) -And !($Volume.Name.Contains("root")) -and $volume_type -notcontains "dp" -and !($Volume.Name.Contains("MDV"))  ) {
+                $volume_quotaHigh += $Volume.name
+            }
+            [String]$volume_type = $volume.VolumeIdAttributes.Type
+            If ( $percent_used -gt 90 -And !($Volume.Name.Contains("vol0")) -And !($Volume.Name.Contains("root")) -and $volume_type -notcontains "dp" -and !($Volume.Name.Contains("MDV"))  ) {
+                $volumeHighUtil += $Volume.name
+            }
+            [String]$vol_autogrow_status = $Volume.VolumeAutosizeAttributes.IsEnabled
+            If ($vol_autogrow_status -eq "False" -And !($Volume.Name.Contains("vol0")) -And !($Volume.Name.Contains("root")) -and $volume_type -notcontains "dp" -and !($Volume.Name.Contains("MDV"))) {
+                $volume_autogrow_disabled += $Volume.Name
+            }
+
         }
     
     } #checking vol online/offline
 
-    return $volumeOffline, $volumeHighUtil, $volume_autogrow_disabled, $volume_snapdelete_enabled
+    return $volumeOffline, $volumeHighUtil, $volume_autogrow_disabled, $volume_quotaHigh
 }
 
 ######################################################################################################################
@@ -814,7 +826,7 @@ Function Get-vserver($cluster) {
       
         $vserverState = $vserver.OperationalState
         $vserverType = $vserver.VserverType
-        if ("running" -notin $vserverState -and $vserverType -notin $cserverexception) {
+        if ("running" -notin $vserverState -and $vserverType -notin $cserverexception  -and !($vserver.VserverName.Contains("-mc"))) {
           
             $vserverStates += $vserverState
             $vserverNames += $vserver.VserverName
@@ -1071,11 +1083,12 @@ Function Ontap-Data1($cluster) {
   </table>
   </TD>
 "@
-    $volumeOffline, $volumeHighUtil, $volume_autogrow_disabled, $volume_snapdelete_enabled = Get-VolumeStatus $cluster
+    $volumeOffline, $volumeHighUtil, $volume_autogrow_disabled, $volume_quotaHigh = Get-VolumeStatus $cluster
     $volumeOfflineTable = "<TR><TH>Offline Volumes</TH></TR>"
-    $volumeHighUtilTable = "<TR><TH>Volumes > 88% </TH></TR>"
+    $volumeHighUtilTable = "<TR><TH>Volumes > 80% NFS/90% CIFS </TH></TR>"
     [Int]$volumeOffline_count = $volumeOffline.count
     [Int]$volumeHighUtil_count = $volumeHighUtil.count
+
     if ($volumeOffline_count -eq 0 -and $volumeHighUtil_count -eq 0) {
         $volume_status = "<TD bgcolor=#33FFBB> Ok </TD>"
     }
@@ -1085,7 +1098,7 @@ Function Ontap-Data1($cluster) {
         }
         $volume_status = @"
       <TD bgcolor=#FA8074>
-          <button type="button" class="collapsible"> Volume > 88%: $volumeHighUtil_count </button>
+          <button type="button" class="collapsible"> Volume > 80% NFS/90% CIFS: $volumeHighUtil_count </button>
           <div class="errorContent">
           <table>
           $volumeHighUtilTable
@@ -1118,7 +1131,7 @@ Function Ontap-Data1($cluster) {
         }
         $volume_status = @"
       <TD bgcolor=#FA8074>
-          <button type="button" class="collapsible"> Volume Offline: $volumeOffline_count :: Volume >88%: $volumeHighUtil_count </button>
+          <button type="button" class="collapsible"> Volume Offline: $volumeOffline_count :: Volume >80% NFS/90% CIFS: $volumeHighUtil_count </button>
           <div class="errorContent">
           <table>
           $volumeOfflineTable
@@ -1129,9 +1142,9 @@ Function Ontap-Data1($cluster) {
 "@           
     }
     $volume_autogrow_disabled_count = $volume_autogrow_disabled.count
-    $volume_snapdelete_enabled_count = $volume_snapdelete_enabled.count
+    [Int]$volume_quotaHigh_count = $volume_quotaHigh.count
     $volume_autogrow_disabled_table = "<TR><TH>Autogrow Disabled</TH></TR>"
-    $volume_snapdelete_enabled_table = "<TR><TH>Auto Snapdelte Enabled</TH></TR>"
+    $volume_quotaHigh_table = "<TR><TH>Quota > 80% Hard Limit</TH></TR>"
     if ($volume_autogrow_disabled_count -eq 0) {
         $volume_autogrow_disabled_status = "<TD bgcolor=#33FFBB> Ok </TD>"
     }
@@ -1150,19 +1163,19 @@ Function Ontap-Data1($cluster) {
      </TD>
 "@
     }
-    if ($volume_snapdelete_enabled_count -eq 0) {
-        $volume_snapdelete_enabled_status = "<TD bgcolor=#33FFBB> Ok </TD>"
+    if ($volume_quotaHigh_count -eq 0) {
+        $volume_quotaHigh_status = "<TD bgcolor=#33FFBB> Ok </TD>"
     }
     else {
-        foreach ($vol_asd_enb in $volume_snapdelete_enabled) {
-            $volume_snapdelete_enabled_table += "<TR><TD bgcolor=#FA8074>$vol_asd_enb</TD></TR>"
+        foreach ($vol_qt in $volume_quotaHigh) {
+            $volume_quotaHigh_table += "<TR><TD bgcolor=#FA8074>$vol_qt</TD></TR>"
         }
-        $volume_snapdelete_enabled_status = @"
+        $volume_quotaHigh_status = @"
      <TD bgcolor=#FA8074>
-         <button type="button" class="collapsible"> Auto Snapdelete Status </button>
+         <button type="button" class="collapsible"> Quota > 80% Hard Limit: $volume_quotaHigh_count </button>
          <div class="errorContent">
          <table>
-         $volume_snapdelete_enabled_table
+         $volume_quotaHigh_table
          </table>
          </div>
      </TD>
@@ -1299,6 +1312,7 @@ Function Ontap-Data1($cluster) {
           $spare_status
           $volume_status
           $volume_autogrow_disabled_status
+          $volume_quotaHigh_status
           $port_status
           $interface_status
           $snapmirror_status
@@ -1306,6 +1320,10 @@ Function Ontap-Data1($cluster) {
 "@
     return $cluster_report_data
 }
+
+
+
+
 
 ######################################################################################################################
 #'Enumerate Cluster table2 data
@@ -1495,11 +1513,141 @@ Function Ontap-Data2($cluster) {
 "@
     return $cluster_report_data
 }
+
+
+
+######################################################################################################################
+#'Enumerate Metrocluster status.
+######################################################################################################################
+
+Function get-metroclusterstatus($cluster){
+    $comp_list =@()
+    $result_list = @()
+    $date_list = @()
+    try{
+        #Process-cluster $cluster
+        $MCStatus = Get-NcMetroclusterCheck
+    } catch{
+        Write-Log -Error -Message "Failed enumerating Metrocluster Status on cluster ""$cluster"""
+        [Int]$script:errorCount++
+        Break;   
+    }
+    
+    foreach ($comp in $MCStatus){
+        $compn = $comp.Component
+        $res = $comp.result
+        $dt = $comp.TimestampDT
+        if ($res -ne 'ok'){
+            $comp_list += $compn
+            $result_list += $res
+            $date_list += $dt
+        }
+    }
+    return $comp_list, $result_list, $date_list
+}
+
+
+
+
+######################################################################################################################
+#'Enumerate Metrocluster  Link status.
+######################################################################################################################
+
+Function get-metroclusterlinkstatus($cluster){
+    $inf_list =@()
+    $inf_node = @()
+    $linkstatus_list = @()
+    try{
+        #Process-cluster $cluster
+        $MCinterconnect = Get-NcMetroclusterInterconnectAdapter
+    } catch{
+        Write-Log -Error -Message "Failed enumerating Metrocluster Status on cluster ""$cluster"""
+        [Int]$script:errorCount++
+        Break;   
+    }
+    
+    foreach ($interface in $MCinterconnect){
+        $adapter = $interface.AdapterName
+        $interface_node = $interface.NodeName
+        $interface_status = $interface.PhysicalLinkStatus
+        if ($interface_status -ne 'UP'){
+            $inf_list += $adapter
+            $inf_node += $interface_node
+            $linkstatus_list += $interface_status
+        }
+    }
+    return $inf_list, $inf_node, $linkstatus_list
+}
+
+
+Function Metrocluster-Data($cluster){
+
+    $cluster_name = Cluster-Name $cluster
+    $comp_list, $result_list, $date_list = get-metroclusterstatus $cluster
+    $comp_error_table = "<TR><TH>Component</TH><TH>Result</TH><TH>Checked On</TH></TR>"
+    [int]$comp_error_count = $comp_list.count
+    if ( $comp_error_count-eq 0){
+        $metroclusterStatus = "<TD bgcolor=#33FFBB> Ok </TD>"
+    }else{
+        for ($i = 0; $i -lt $comp_error_count; $i++){
+            $comp = $comp_list[$i]
+            $res = $result_list[$i]
+            $dt = $date_list[$i]
+            $comp_error_table += "<TR><TD bgcolor=#FA8074>$comp</TD><TD bgcolor=#FA8074>$res</TD><TD bgcolor=#FA8074>$dt</TD></TR>"
+        }
+    $metroclusterStatus = @"
+    <TD bgcolor=#FA8074>
+        <button type="button" class="collapsible"> $comp_error_count Metro Cluster Component in Error </button>
+        <div class="errorContent">
+        <table>
+        $comp_error_table
+        </table>
+        </div>
+    </TD>
+"@
+    }
+
+    $inf_list, $inf_node, $linkstatus_list = get-metroclusterlinkstatus $cluster
+    $inf_down_table = "<TR><TH>Adapter</TH><TH>Node</TH><TH>Link Status</TH></TR>"
+    [int]$interface_down_count = $inf_list.count
+    if ( $interface_down_count-eq 0){
+        $metroclusterlinkStatus = "<TD bgcolor=#33FFBB> Ok </TD>"
+    }else{
+        for ($i = 0; $i -lt $interface_down_count; $i++){
+            $adapter = $inf_list[$i]
+            $adapter_node = $inf_node[$i]
+            $link = $linkstatus_list[$i]
+            $inf_down_table += "<TR><TD bgcolor=#FA8074>$adapter</TD><TD bgcolor=#FA8074>$adapter_node</TD><TD bgcolor=#FA8074>$link</TD></TR>"
+        }
+    $metroclusterlinkStatus = @"
+    <TD bgcolor=#FA8074>
+        <button type="button" class="collapsible"> $interface_down_count Metro Cluster Interface Down </button>
+        <div class="errorContent">
+        <table>
+        $inf_down_table
+        </table>
+        </div>
+    </TD>
+"@
+    }
+    $Metrocluster_report_data = @"
+      <TR>
+          <TD>$cluster_name</TD>
+          $metroclusterStatus
+          $metroclusterlinkStatus
+
+      </TR>
+"@
+    return $Metrocluster_report_data
+}
+
+
 Function Cluster-ReportTable($clusters) {
   
     foreach ($cluster in $clusters) {
         [String]$ontap_data_1_dt += Ontap-Data1 $cluster
         [String]$ontap_data_2_dt += Ontap-Data2 $cluster
+        [String]$mcluster_data_dt += Metrocluster-Data $cluster
     }   
     $cluster_report_body = @"
   <div>
@@ -1515,6 +1663,7 @@ Function Cluster-ReportTable($clusters) {
               <TH><B> Spare Disk Status </B></TH>
              <TH><B> Vol Status </B></TH>
               <TH><B> Vol AutoGrow Status </B></TH>
+              <TH><B> CIFS Quota Status </B></TH>
               <TH><B> Port Status </B></TH>
               <TH><B> LIF status </B></TH>
               <TH><B> Snapmirror Status </B></TH>
@@ -1534,6 +1683,16 @@ Function Cluster-ReportTable($clusters) {
               <TH><B> Cluster Config Bkp </B></TH>
           </TR>
           $ontap_data_2_dt
+      </Table>
+  <h3 style='color : #464A46; font-size : 21px' align="" left ""> Metro-Cluster </h3>
+  </caption>
+      <Table>
+          <TR>
+              <TH><B> Cluster Name </B></TH>
+              <TH><B> Metro Cluster Status </B></TH>
+              <TH><B> Metro Cluster Interconnect Status </B></TH>
+          </TR>
+          $mcluster_data_dt
       </Table>
   </div>
 "@
@@ -1594,5 +1753,5 @@ $current_date = Get-IsoDate
 $htmlOut = HTML-Body $current_time $current_date
 Set-Content -Path $outfile -Value $htmlOut
 delete-OldFiles
-mail-Mod $outfile $htmlOut
+#mail-Mod $outfile $htmlOut
 #######################################################################################################################
